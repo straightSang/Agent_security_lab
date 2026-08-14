@@ -6,7 +6,7 @@
         },
 
 
-1. execute_tool return (Runtime 내부)스키마
+## 1. execute_tool return (Runtime 내부)스키마
 return
 {
     "ok": True | False,
@@ -23,7 +23,39 @@ return
     }
 }
 
-2. LLM Obsevation context 스키마
+#### 성공
+{
+    "ok": True,
+    "status": "success",
+    "stage": "execution",
+    "data": output,
+    "error": None
+}
+#### 정책 차단
+{
+    "ok": False,
+    "status": "denied",
+    "stage": "authorization",
+    "data": None,
+    "error": {
+        "code": "PERMISSION_DENIED",
+        "message": decision["reason"]
+    }
+}
+#### 실행 오류
+{
+    "ok": False,
+    "status": "error",
+    "stage": "execution",
+    "data": None,
+    "error": {
+        "code": "TOOL_EXECUTION_ERROR",
+        "message": str(e)
+    }
+}
+
+
+## 2. LLM Obsevation context 스키마
 
 if result["ok"]:
     return {
@@ -39,8 +71,8 @@ return {
     }
 }
 
-3. logger 스키마
+## 3. logger 스키마
 
 
-4. Tools 스키마
+## 4. Tools 스키마
 모든 도구들은 result를 반환할 때 dict에 result["reason"] 을 포함하고 있어야 한다. 

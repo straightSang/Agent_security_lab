@@ -1,138 +1,141 @@
-> [Threat Model]
-> - 시스템의 자산
-> - 예상되는 공격자
-> - 신뢰 경계
-> - 가능한 공격
-> 을 정리한 문서.
+# Threat Model v0.2
 
-
-
-### 1. System
-
-```
-Minimal Tool-Using Agent
+## System
 
 User
-
-↓
-
-LLM
-
-↓
-
-Tool Dispatcher
-
-↓
-
-Validator
-
-↓
-
-Runtime
-
-↓
-
-Filesystem
-```
+→ LLM
+→ Tool Request
+→ Validation
+→ Authorization
+→ Runtime Enforcement
+→ Tool
+→ Filesystem
 
 ---
 
-### 2. Assets
+## Assets
 
-보호해야 하는 것
-
-```
-Filesystem
-
-User files
-
-Credentials
-
-Source code
-
-Tool capability
-
-Execution integrity
-```
+- Workspace files
+- Notes
+- Configuration
+- Source code
+- Agent Tool capability
+- Execution integrity
 
 ---
 
-### 3. Actors
+## Trust Assumptions
 
-누가 시스템과 상호작용하는가
+LLM output은 신뢰하지 않는다.
 
-```
-User
+Tool argument는 신뢰하지 않는다.
 
-LLM
+Validator, Authorization Layer,
+Runtime Enforcement는
+Trusted Computing Base의 일부로 간주한다.
 
-Runtime
-
-Filesystem
-
-Attacker
-```
+Filesystem content는
+source에 따라 trusted / untrusted일 수 있다.
 
 ---
 
-### 4. Entry Points
+## Threats
 
-공격자가 영향을 줄 수 있는 곳
+| Threat | Attack Surface | Mitigation | Experiment |
+|---|---|---|---|
+| Path Traversal | File path | safe_resolve() | EXP-007 |
+| Unauthorized Read | read_file | Permission Policy + authorize() | EXP-008 |
+| Unauthorized Write | write_file | Permission Policy + authorize() | EXP-009 |
+| Arbitrary Command | run_command | Command Allowlist | EXP-010 |
 
-```
-User Prompt
+---
 
-Files
+## Security Flow
 
-Tool Output
+Tool Request
+→ Validation
+→ Authorization
+→ Runtime Enforcement
+→ Execution
 
-Observation
-```
+---
 
+## T-001 Path Traversal
 
-### 5. Trust Boundaries
+Threat:
 
-```
-User → LLM
+Attacker-controlled path가 Sandbox 밖의
+Resource에 접근할 수 있다.
 
-LLM → Tool
+Example:
 
-Tool → Runtime
+read_file("../secret.txt")
 
-Runtime → Filesystem
-```
+Mitigation:
 
-### 6. Threats
+safe_resolve()
 
-| Threat | 위치 |
-| --- | --- |
-| Prompt Injection | User → LLM |
-| Indirect Prompt Injection | File → LLM |
-| Tool Misuse | LLM → Tool |
-| Path Traversal | Tool → Runtime |
-| Privilege Abuse | Runtime → Filesystem |
+Expected:
 
+Validation DENY
 
-### 7. Mitigation
+---
 
+## T-002 Unauthorized Write
 
+Threat:
 
-### ?. Summary
+Agent가 Sandbox 내부이지만
+Write가 허용되지 않은 Resource를 수정할 수 있다.
 
-| Source | Trusted? | Destination | Boundary | Risk |
-| --- | --- | --- | --- | --- |
-| User | No | LLM | User → Model | Prompt Injection |
-| File | No | LLM Context | File → Model | Indirect Prompt Injection |
-| LLM Output | No | Tool | Model → Runtime | Tool Misuse |
-| Tool Arguments | No | Validator | Tool → Runtime | Path Traversal |
-| Runtime | Yes | Filesystem | Runtime → OS | Permission Enforcement |
-| Tool Output | Conditional | LLM | Environment → Model | Context Poisoning |
+Example:
 
+write_file("notes/output.txt")
 
-### 8. To be supplemented
+Mitigation:
 
-- Threats
+Permission Policy
 
-- Mitigation
+authorize()
 
-- Experiment Mapping
+Expected:
+
+Validation PASS
+
+Authorization DENY
+
+---
+
+## T-003 Arbitrary Command
+
+Threat:
+
+Agent가 허용되지 않은 command를
+실행하려고 시도할 수 있다.
+
+Example:
+
+run_command("rm file.txt")
+
+Mitigation:
+
+Command Allowlist
+
+Expected:
+
+Authorization DENY
+
+---
+
+## Residual Risks
+
+현재 버전에서는 다음을 아직 다루지 않는다.
+
+- Symlink edge cases
+- Shell metacharacters
+- Argument-level command policy
+- User approval
+- Multiple Agent identities
+- Dynamic permissions
+- Network permissions
+- Indirect Prompt Injection
