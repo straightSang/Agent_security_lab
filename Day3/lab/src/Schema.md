@@ -7,7 +7,8 @@
 
 
 ## 1. execute_tool return (Runtime 내부)스키마
--   return
+-   
+    return
     {
         "ok": True | False,
         "end_stage": "validation" | "authorization" | "execution",
@@ -24,7 +25,8 @@
 }
 
 #### 성공
--   {
+-   
+    {
         "ok": True,
         "status": "success",
         "stage": "execution",
@@ -32,7 +34,8 @@
         "error": None
     }
 #### 정책 차단
--   {
+-  
+    {
         "ok": False,
         "status": "denied",
         "stage": "authorization",
@@ -43,7 +46,8 @@
         }
     }
 #### 실행 오류
--   {
+-  
+    {
         "ok": False,
         "status": "error",
         "stage": "execution",
@@ -57,7 +61,8 @@
 
 ## 2. LLM Obsevation context 스키마
 
--   if result["ok"]:
+-   
+    if result["ok"]:
         return {
             "status": "success",
             "content": result["data"]
