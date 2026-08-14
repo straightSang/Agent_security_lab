@@ -7,69 +7,69 @@
 
 
 ## 1. execute_tool return (Runtime 내부)스키마
-return
-{
-    "ok": True | False,
-    "end_stage": "validation" | "authorization" | "execution",
-    "status": "success" | "denied" | "error",
-    "data": None | object,
-    "error": None | {
-        "code": None | DENIED | ERROR
-        "message": None | ["reason"] | str(e)
-    },
-    "meta": {
-        "tool_name": 
-        "call_id": 
-    }
+-   return
+    {
+        "ok": True | False,
+        "end_stage": "validation" | "authorization" | "execution",
+        "status": "success" | "denied" | "error",
+        "data": None | object,
+        "error": None | {
+            "code": None | DENIED | ERROR
+            "message": None | ["reason"] | str(e)
+        },
+        "meta": {
+            "tool_name": 
+            "call_id": 
+        }
 }
 
 #### 성공
-{
-    "ok": True,
-    "status": "success",
-    "stage": "execution",
-    "data": output,
-    "error": None
-}
+-   {
+        "ok": True,
+        "status": "success",
+        "stage": "execution",
+        "data": output,
+        "error": None
+    }
 #### 정책 차단
-{
-    "ok": False,
-    "status": "denied",
-    "stage": "authorization",
-    "data": None,
-    "error": {
-        "code": "PERMISSION_DENIED",
-        "message": decision["reason"]
+-   {
+        "ok": False,
+        "status": "denied",
+        "stage": "authorization",
+        "data": None,
+        "error": {
+            "code": "PERMISSION_DENIED",
+            "message": decision["reason"]
+        }
     }
-}
 #### 실행 오류
-{
-    "ok": False,
-    "status": "error",
-    "stage": "execution",
-    "data": None,
-    "error": {
-        "code": "TOOL_EXECUTION_ERROR",
-        "message": str(e)
+-   {
+        "ok": False,
+        "status": "error",
+        "stage": "execution",
+        "data": None,
+        "error": {
+            "code": "TOOL_EXECUTION_ERROR",
+            "message": str(e)
+        }
     }
-}
 
 
 ## 2. LLM Obsevation context 스키마
 
-if result["ok"]:
-    return {
-        "status": "success",
-        "content": result["data"]
-    }
+-   if result["ok"]:
+        return {
+            "status": "success",
+            "content": result["data"]
+        }
 
-return {
-    "status": result["status"],
-    "error": {
-        "code": result["error"]["code"],
-        "message": result["error"]["message"]
+    return {
+        "status": result["status"],
+        "error": {
+            "code": result["error"]["code"],
+            "message": result["error"]["message"]
+        }
     }
-}
 
 ## 3. logger 스키마
 
