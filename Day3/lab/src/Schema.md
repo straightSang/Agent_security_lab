@@ -1,13 +1,13 @@
 - result, log() 스키마 작성:: 일관된 의미로 사용하는 것이 중요하다.
-    - 
+```python
         result={
             "status": "success",
             "output": result -> 거부: 이유, 성공: 
         },
-
+```
 
 ## 1. execute_tool return (Runtime 내부)스키마
--   
+```python
     return
     {
         "ok": True | False,
@@ -23,9 +23,10 @@
             "call_id": 
         }
 }
+```
 
 #### 성공
--   
+```python
     {
         "ok": True,
         "status": "success",
@@ -33,8 +34,9 @@
         "data": output,
         "error": None
     }
+```
 #### 정책 차단
--  
+```python
     {
         "ok": False,
         "status": "denied",
@@ -45,8 +47,9 @@
             "message": decision["reason"]
         }
     }
+```
 #### 실행 오류
--  
+```python
     {
         "ok": False,
         "status": "error",
@@ -57,11 +60,11 @@
             "message": str(e)
         }
     }
-
+```
 
 ## 2. LLM Obsevation context 스키마
 
--   
+```python
     if result["ok"]:
         return {
             "status": "success",
@@ -75,6 +78,7 @@
             "message": result["error"]["message"]
         }
     }
+```
 
 ## 3. logger 스키마
 
