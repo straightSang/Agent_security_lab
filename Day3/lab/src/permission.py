@@ -2,13 +2,13 @@
 # 세부사항:
 """
 read_file
-→ sandbox, data 에서만 허용
+→  "data", "workspace" 에서만 허용
 
 write_file
-→ sandbox 에서만 허용
+→  "workspace" 에서만 허용
 
 list_files
-→ sandbox, data 에서만 허용
+→  "data", "workspace" 에서만 허용
 
 run_command
 → pwd / ls / cat만 허용
@@ -26,20 +26,20 @@ POLICY = {
 
     "read_file" : {
         "allowed_dirs": [
-            "sandbox", "data"
+            "data", "workspace"
         ]
     },
 
     "write_file" : {
         "allowed_dirs": [
-            "sandbox"
+            "workspace"
         ]
 
     },
 
     "list_files" : {
         "allowed_dirs": [
-            "sandbox", "data"
+            "workspace", "data"
         ]
     },
 

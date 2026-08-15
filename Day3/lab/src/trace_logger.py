@@ -24,8 +24,8 @@ class TraceLogger:
         validation: dict = None,
         authorization: dict = None,
         execution: dict = None,
-        result: dict = None
-        data: dict = None, 
+        result: dict = None,
+        data: dict = None
         ):
         
         self.event_index += 1

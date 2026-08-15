@@ -14,6 +14,8 @@ from openai import OpenAI
 from trace_logger import TraceLogger
 from authorization import authorize
 
+from permission import POLICY
+
 
 # =========================
 # Environment
@@ -32,8 +34,10 @@ MODEL = "gpt-5.5"
 # Filesystem
 # =========================
 
-SANDBOX_ROOT = Path(
-    "./sandbox"
+SOURCE_DIR = Path(__file__).resolve().parent
+
+SANDBOX_ROOT = (
+    SOURCE_DIR / "sandbox"
 ).resolve()
 
 

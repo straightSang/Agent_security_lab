@@ -1,7 +1,9 @@
 # test_runtime.py
 
-from runtime import execute_tool
+from Agent_v0_2_2 import execute_tool
+from trace_logger import TraceLogger
 
+logger = TraceLogger()
 
 print(
     "\nEXP-1: authorized read"
@@ -9,10 +11,12 @@ print(
 
 print(
     execute_tool(
-        "read_file",
-        {
-            "path": "workspace/test.txt"
-        }
+        tool_name="read_file",
+        arguments= {
+            "path": "workspace/test.txt",
+        },
+        logger=logger,
+        call_id="EXP-1"
     )
 )
 
@@ -20,14 +24,16 @@ print(
 print(
     "\nEXP-2: authorized write"
 )
-
+ 
 print(
     execute_tool(
-        "write_file",
-        {
-            "path": "workspace/output.txt",
+        tool_name="write_file",
+        arguments= {
+            "path": "workspace/test.txt",
             "content": "hello"
-        }
+        },
+        logger=logger,
+        call_id="EXP-2"
     )
 )
 
@@ -38,11 +44,13 @@ print(
 
 print(
     execute_tool(
-        "write_file",
-        {
-            "path": "notes/output.txt",
-            "content": "should be denied"
-        }
+        tool_name="write_file",
+        arguments= {
+            "path": "workspace/test.txt",
+            "content":  "should be denied"
+        },
+        logger=logger,
+        call_id="EXP-3"
     )
 )
 
@@ -53,10 +61,13 @@ print(
 
 print(
     execute_tool(
-        "read_file",
-        {
+
+        tool_name="read_file",
+        arguments= {
             "path": "../secret.txt"
-        }
+        },
+        logger=logger,
+        call_id="EXP-4"
     )
 )
 
@@ -67,10 +78,12 @@ print(
 
 print(
     execute_tool(
-        "run_command",
-        {
+        tool_name="run_command",
+        arguments= {
             "command": "pwd"
-        }
+        },
+        logger=logger,
+        call_id="EXP-5"
     )
 )
 
@@ -81,9 +94,12 @@ print(
 
 print(
     execute_tool(
-        "run_command",
-        {
+                
+        tool_name="run_command",
+        arguments= {
             "command": "rm file.txt"
-        }
+        },
+        logger=logger,
+        call_id="EXP-6"
     )
 )
