@@ -5,6 +5,8 @@ import json
 import operator
 import os
 
+from runtime import Runtime
+
 from datetime import datetime
 from pathlib import Path
 
@@ -14,6 +16,7 @@ from openai import OpenAI
 from trace_logger import TraceLogger
 from authorization import authorize
 
+DAY4_RUNTIME = Runtime()
 
 # =========================
 # Environment
@@ -1466,14 +1469,14 @@ def run_agent(
             # Execution
             # =====================
 
-            runtime_result = (
-                execute_tool(
-                    tool_name,
-                    arguments,
-                    logger,
-                    item.call_id
-                )
-            )
+            runtime_result = DAY4_RUNTIME.execute_tool(
+                tool_name=tool_name,
+                arguments=arguments,
+                call_id=item.call_id,
+                run_id=run_id,
+                actor=actor,
+                provenance=current_provenance,
+            ).to_dict()
 
 
             # =====================
