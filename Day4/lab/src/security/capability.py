@@ -1,4 +1,4 @@
-"""Map normalized tool proposals to the least capability needed to perform them."""
+"""정규화된 도구 제안을 실행에 필요한 최소 capability로 매핑한다."""
 
 from __future__ import annotations
 

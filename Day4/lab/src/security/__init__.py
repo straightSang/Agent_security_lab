@@ -1,4 +1,4 @@
-"""Security-domain types and policy components for the agent testbed."""
+"""Agent testbed의 보안 도메인 타입과 정책 구성 요소."""
 
 from .types import ApprovalState, Decision, PolicyDecision, RuntimeResult, ToolIntent
 

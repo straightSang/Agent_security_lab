@@ -1,4 +1,4 @@
-"""Central trust-labelling policy; keep it separate from allow/deny policy."""
+"""중앙 trust label 정책. allow/deny 정책과 분리해 유지한다."""
 
 from __future__ import annotations
 
@@ -16,5 +16,5 @@ DEFAULT_TRUST_BY_PROVENANCE = {
 
 
 def label_trust(provenance: Provenance) -> TrustLabel:
-    """Treat content that may contain indirect instructions as untrusted by default."""
+    """간접 지시를 포함할 수 있는 콘텐츠는 기본적으로 untrusted로 취급한다."""
     return DEFAULT_TRUST_BY_PROVENANCE[provenance.kind]

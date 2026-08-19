@@ -1,9 +1,9 @@
-"""Day 4-compatible entry point for the original mini agent.
+"""기존 mini agent와 호환되는 Day 4 진입점.
 
-The public helpers in this module deliberately preserve the v0.2.2 shape:
-``validate_tool_call()``, ``execute_tool()``, ``make_runtime_result()`` and
-``to_observation()``.  The implementation now delegates enforcement to
-``runtime.Runtime`` so an LLM tool proposal is never itself an execution grant.
+이 모듈의 공개 helper는 ``validate_tool_call()``, ``execute_tool()``,
+``make_runtime_result()``, ``to_observation()``라는 v0.2.2 형태를 유지한다.
+다만 실제 enforcement는 ``runtime.Runtime``에 위임하므로 LLM의 도구 제안은
+그 자체로 실행 권한이 되지 않는다.
 """
 
 from __future__ import annotations
@@ -30,10 +30,10 @@ from trace_logger import TraceLogger
 
 SOURCE_DIR = Path(__file__).resolve().parent
 SANDBOX_ROOT = (SOURCE_DIR / "sandbox").resolve()
-TRACE_PATH = SOURCE_DIR / "traces" / "trace.jsonl"
+TRACE_PATH = SOURCE_DIR / "traces" / "trace_A.jsonl"
 
-# Kept as an OpenAI Responses API compatible function-tool list.  It is not a
-# security control; runtime validation remains mandatory even with strict=True.
+# OpenAI Responses API 호환 함수 도구 목록이다. 이것은 보안 통제가 아니며,
+# strict=True여도 Runtime validation은 반드시 수행한다.
 TOOLS: list[dict[str, Any]] = [
     {
         "type": "function", "name": "calculator", "strict": True,
@@ -69,7 +69,7 @@ TOOLS: list[dict[str, Any]] = [
 
 
 def build_runtime(*, trace_path: Path = TRACE_PATH) -> Runtime:
-    """Build the default local testbed runtime without requiring an API key."""
+    """API key 없이 기본 로컬 testbed Runtime을 구성한다."""
     return Runtime(
         sandbox_root=SANDBOX_ROOT,
         policy=PolicyEngine(),
@@ -82,12 +82,12 @@ DEFAULT_RUNTIME = build_runtime()
 
 
 def safe_resolve(user_path: str) -> Path:
-    """v0.2.2-compatible sandbox resolver bound to this agent's sandbox."""
+    """이 Agent의 sandbox에 결속된 v0.2.2 호환 경로 resolver."""
     return _safe_resolve(user_path, SANDBOX_ROOT)
 
 
 def validate_tool_call(tool_name: str, arguments: Mapping[str, Any]) -> dict[str, Any]:
-    """v0.2.2-compatible validation wrapper bound to this agent's sandbox."""
+    """이 Agent의 sandbox에 결속된 v0.2.2 호환 validation wrapper."""
     return _validate_tool_call(tool_name, arguments, SANDBOX_ROOT)
 
 
@@ -103,11 +103,10 @@ def execute_tool(
     agent_step: int | None = None,
     runtime: Runtime | None = None,
 ) -> dict[str, Any]:
-    """Execute a proposal through all Day 3/4 controls.
+    """모든 Day 3/4 통제를 거쳐 제안을 실행한다.
 
-    The old three positional arguments are still accepted.  New callers can
-    supply provenance and an approved approval id; neither is inferred from an
-    LLM string.
+    이전의 세 위치 인자는 계속 허용한다. 새 호출자는 provenance와 승인된
+    approval ID를 제공할 수 있으나, 둘 다 LLM 문자열에서 추론하지 않는다.
     """
     active_runtime = runtime or DEFAULT_RUNTIME
     return active_runtime.execute_tool(
@@ -123,15 +122,15 @@ def execute_tool(
 
 
 def observation_for_tool_output(runtime_result: Mapping[str, Any]) -> dict[str, Any]:
-    """Explicitly named alias for the original Observation Adapter."""
+    """기존 Observation Adapter의 의미를 분명히 한 별칭."""
     return to_observation(runtime_result)
 
 
 def run_responses_agent(user_input: str) -> str:
-    """Optional minimal Responses API loop.
+    """선택적으로 사용하는 최소 Responses API loop.
 
-    This is intentionally opt-in: tests and security experiments run locally
-    without importing the OpenAI SDK or reading ``OPENAI_API_KEY``.
+    테스트와 보안 실험은 OpenAI SDK를 import하거나 ``OPENAI_API_KEY``를 읽지
+    않고 로컬에서 실행할 수 있도록 의도적으로 opt-in으로 만들었다.
     """
     try:
         from openai import OpenAI
@@ -143,6 +142,6 @@ def run_responses_agent(user_input: str) -> str:
         raise RuntimeError("OPENAI_API_KEY is required for the API loop")
     client = OpenAI(api_key=api_key)
     response = client.responses.create(model=os.getenv("MODEL", "gpt-5.5"), input=user_input, tools=TOOLS)
-    # A production loop should iterate function calls. Keeping this small avoids
-    # accidentally bypassing execute_tool; callers must feed every call through it.
+    # 운영 loop는 function call을 반복 처리해야 한다. 이 구현을 작게 유지하여
+    # execute_tool을 우회하지 않게 했고, 호출자는 모든 요청을 이 경계로 보내야 한다.
     return response.output_text

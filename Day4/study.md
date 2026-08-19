@@ -901,3 +901,5 @@ Filesystem / API / DB / Network
 이 그림을 머릿속에 잡는 게 가장 중요합니다.
 
 [MCP 공식 Architecture 문서](https://modelcontextprotocol.io/specification/2025-06-18/architecture?utm_source=chatgpt.com)에서 다음으로 **Host / Client / Server가 실제 요청 하나를 어떻게 주고받는지**를 보면 이해가 가장 빨라집니다.
+
+

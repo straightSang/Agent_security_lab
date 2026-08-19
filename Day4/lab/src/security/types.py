@@ -1,4 +1,4 @@
-"""Explicit, serialisable contracts between proposal, policy, approval and runtime."""
+"""제안·정책·승인·Runtime 사이의 명시적 직렬화 가능 계약."""
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ class ApprovalStatus(str, Enum):
 
 @dataclass(frozen=True)
 class ToolIntent:
-    """A proposed operation; it is not an authority to execute."""
+    """제안된 작업이며, 실행 권한 자체는 아니다."""
     run_id: str
     call_id: str
     actor: str
@@ -61,8 +61,8 @@ class ToolIntent:
     capability: Capability
     action: str
     resource: str | None
-    # The Agent knows this value; direct Runtime tests may leave it unknown.
-    # It is audit metadata, deliberately not part of the approval fingerprint.
+    # Agent는 이 값을 알지만, Runtime 직접 테스트는 값을 모를 수 있다.
+    # 감사 메타데이터일 뿐 승인 fingerprint에는 의도적으로 넣지 않는다.
     agent_step: int | None = None
 
     def fingerprint(self) -> str:

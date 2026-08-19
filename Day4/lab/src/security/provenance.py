@@ -1,4 +1,4 @@
-"""Provenance is metadata about where an instruction or observation came from."""
+"""Provenance는 지시 또는 observation이 어디서 왔는지 나타내는 메타데이터다."""
 
 from __future__ import annotations
 

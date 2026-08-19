@@ -1,4 +1,4 @@
-"""In-memory approval state with intent binding; replace storage, not semantics."""
+"""Intent에 결속된 메모리 내 승인 상태. 저장소만 교체하고 의미는 유지한다."""
 
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ class ApprovalStore:
         return state
 
     def consume(self, approval_id: str, *, intent_fingerprint: str) -> ApprovalState:
-        """Make a matching approved record single-use before tool dispatch."""
+        """일치하는 승인 record를 도구 dispatch 직전에 일회용으로 소비한다."""
         state = self.resolve(approval_id)
         if (
             state.status is not ApprovalStatus.APPROVED

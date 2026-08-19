@@ -1,4 +1,4 @@
-"""Validation, safe local tools, and the only runtime execution boundary."""
+"""Validation, 안전한 로컬 도구, 그리고 유일한 Runtime 실행 경계."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ def make_runtime_result(
     data: Any = None, error_code: str | None = None,
     error_message: str | None = None, meta_extra: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """v0.2.2-compatible result factory, including ``meta_extra``."""
+    """``meta_extra``를 포함하는 v0.2.2 호환 result factory."""
     result = RuntimeResult(
         ok, status, end_stage, tool_name, call_id, data=data,
         error_code=error_code, error_message=error_message,
@@ -43,7 +43,7 @@ def make_runtime_result(
 
 
 def to_observation(runtime_result: Mapping[str, Any]) -> dict[str, Any]:
-    """Keep runtime status and LLM observation deliberately separate."""
+    """Runtime 상태와 LLM observation을 의도적으로 분리한다."""
     if runtime_result["ok"]:
         return {"status": "success", "data": runtime_result["data"]}
     return {
@@ -88,7 +88,7 @@ def validate_arguments(tool_name: str, arguments: Mapping[str, Any]) -> dict[str
 
 
 def validate_tool_call(tool_name: str, arguments: Mapping[str, Any], sandbox_root: Path | None = None) -> dict[str, Any]:
-    """Structural validation only: no policy or authorization decision here."""
+    """구조 validation만 수행한다. 여기서는 policy/authorization을 판단하지 않는다."""
     root = (sandbox_root or Path("sandbox")).resolve()
     checked = validate_arguments(tool_name, arguments)
 
@@ -116,7 +116,7 @@ def validate_tool_call(tool_name: str, arguments: Mapping[str, Any], sandbox_roo
             if len(parts) > 2:
                 return {"allowed": False, "reason": "usage: ls [path]", "resolved_path": None, "command_base": command_base}
             return {"allowed": True, "reason": None, "resolved_path": safe_resolve(parts[1] if len(parts) == 2 else ".", root), "command_base": command_base}
-        # Unknown commands are syntactically valid proposals. Policy denies them.
+        # 알 수 없는 명령도 문법상 제안으로는 유효하다. Policy가 이를 거부한다.
         
         return {"allowed": True, "reason": None, "resolved_path": None, "command_base": command_base}
 
@@ -156,7 +156,7 @@ def calculator(expression: str) -> str:
 
 
 class Runtime:
-    """Authoritative execution boundary; it executes only ALLOW decisions."""
+    """권위 있는 실행 경계. allow 또는 유효한 승인 요청만 실행한다."""
 
     def __init__(self, *, sandbox_root: Path, policy: PolicyEngine, approvals: ApprovalStore, trace_logger: TraceLogger, legacy_authorizer: Callable[[ToolIntent], tuple[bool, str | None]] | None = None) -> None:
         self.sandbox_root = sandbox_root.resolve()
@@ -201,8 +201,8 @@ class Runtime:
                 return result
 
         if decision.outcome is Decision.APPROVAL_REQUIRED:
-            # Consume before dispatch so the grant cannot be replayed if the
-            # process crashes immediately after the side effect.
+            # 부작용 직후 프로세스가 죽어도 승인이 재사용되지 않도록 dispatch 전에
+            # 소비한다.
             approval_state = self.approvals.consume(
                 approval_id or "",
                 intent_fingerprint=intent.fingerprint(),
@@ -217,7 +217,7 @@ class Runtime:
         try:
             data = self._dispatch(intent, validation)
             result = RuntimeResult.success(tool_name, call_id, data, security={**decision.trace_fields(), "approval": approval_state.status.value, "approval_id": approval_state.approval_id})
-        except Exception as exc:  # tool errors are mapped; details stay local
+        except Exception as exc:  # 도구 오류를 매핑하며 세부 정보는 로컬에 둔다.
             code = "NOT_FOUND" if isinstance(exc, FileNotFoundError) else "EXECUTION_ERROR"
             result = RuntimeResult.failure("execution_failed", "runtime", tool_name, call_id, code, str(exc), security={**decision.trace_fields(), "approval": approval_state.status.value, "approval_id": approval_state.approval_id})
         self.trace.record_result(intent, result)
