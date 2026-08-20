@@ -1,4 +1,4 @@
-"""제안·정책·승인·Runtime 사이의 명시적 직렬화 가능 계약."""
+"""제안·정책·승인·Runtime 사이의 명시적 계약."""
 
 from __future__ import annotations
 
@@ -39,6 +39,13 @@ class Decision(str, Enum):
     APPROVAL_REQUIRED = "approval_required"
 
 
+class AuthorizationOutcome(str, Enum):
+    """Actor와 특정 resource의 관계에 대한 Day 5 결론."""
+
+    ALLOW = "allow"
+    DENY = "deny"
+
+
 class ApprovalStatus(str, Enum):
     NOT_REQUIRED = "not_required"
     INVALID = "invalid"
@@ -47,17 +54,6 @@ class ApprovalStatus(str, Enum):
     REJECTED = "rejected"
     EXPIRED = "expired"
     CONSUMED = "consumed"
-
-
-class AuthorizationOutcome(str, Enum):
-    """Authorization은 allow/deny만 판단한다.
-
-    Approval은 Authorization을 통과한 고위험 작업에 대해 별도로 판단하므로
-    ``APPROVAL_REQUIRED``를 이 enum에 넣지 않는다.
-    """
-
-    ALLOW = "allow"
-    DENY = "deny"
 
 
 @dataclass(frozen=True)
@@ -95,8 +91,22 @@ class PolicyDecision:
 
 
 @dataclass(frozen=True)
+class ApprovalState:
+    approval_id: str | None
+    status: ApprovalStatus
+    intent_fingerprint: str | None = None
+    requested_at: str | None = None
+    expires_at: str | None = None
+    approver: str | None = None
+    requested_actor: str | None = None
+    required_approver: str | None = None
+    resource: str | None = None
+    action: str | None = None
+
+
+@dataclass(frozen=True)
 class AuthorizationDecision:
-    """Actor-resource-action 관계에 대한 서버 측 인가 결과 계약."""
+    """Policy 결과와 분리된 actor-resource-action 인가 계약."""
 
     outcome: AuthorizationOutcome
     reason: str
@@ -111,20 +121,6 @@ class AuthorizationDecision:
             "authorization_reason": self.reason,
             "required_approver": self.required_approver,
         }
-
-
-@dataclass(frozen=True)
-class ApprovalState:
-    approval_id: str | None
-    status: ApprovalStatus
-    intent_fingerprint: str | None = None
-    requested_at: str | None = None
-    expires_at: str | None = None
-    approver: str | None = None
-    requested_actor: str | None = None
-    required_approver: str | None = None
-    resource: str | None = None
-    action: str | None = None
 
 
 @dataclass

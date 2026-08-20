@@ -11,10 +11,11 @@ POLICY = {
     # 그 하위 항목을 뜻한다. 다른 하위 디렉터리는 Day 4 v0.1 범위 밖이다.
     "read_file": {"allowed_scopes": {"root_file", "data"}},
     "list_files": {"allowed_scopes": {"sandbox_root", "data"}},
-    # 직접 사용자 요청은 명시적 승인 후에만 ``output.txt``를 쓸 수 있다.
-    # ``data/output.txt``와 다른 하위 디렉터리 쓰기는 승인 여부와 관계없이 거부한다.
+    # Day 5: write는 일반 policy상 승인 필요다. 정확한 actor-resource 관계는
+    # AuthorizationEngine이 별도로 확인한다. 즉 data/** 쓰기가 여기서
+    # APPROVAL_REQUIRED여도 non-owner는 Authorization에서 FORBIDDEN이다.
     "write_file": {
-        "allowed_scopes": {"root_file"},
+        "allowed_scopes": {"root_file", "data"},
         "approval_required": True,
     },
     "run_command": {"allowed_commands": {"pwd", "ls", "cat"}},

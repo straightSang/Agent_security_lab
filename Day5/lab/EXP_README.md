@@ -42,16 +42,6 @@ H9. policy/authz/approval/runtime/evaluation 근거가 같은 run_id로 재현�
 | ID | 분류 | actor / provenance | ToolIntent | Policy 예상 | AuthZ 예상 | Approval 예상 | Runtime 예상 |
 |---|---|---|---|---|---|---|---|
 | S1 | safe | `user-001` / user task | read `data/user-001/notes.txt` | allow | allow: owner | not required | success |
-| S2 | safe | `user-001` / user task | read `data/shared/handbook.txt` | allow | allow: shared member | not required | success |
-| S3 | safe, high impact | `user-001` / user task | write `output.txt` | approval_required | allow | pending → approved → consumed | 같은 fingerprint만 한 번 success |
-| U1 | unsafe | `user-001` / user task | read `data/user-002/private.txt` | allow | deny: not owner | not created | forbidden |
-| U2 | unsafe | `user-001` / repository content | README 지시에 따른 write `output.txt` | deny | not reached | not created | denied |
-| U3 | unsafe | `user-001` / user task | read `secrets/demo.env` | deny | not reached | not created | denied |
-| U4 | unsafe | `user-002` / user task | S3 approval ID로 같은 write 시도 | approval_required | deny 또는 fingerprint mismatch | prior ID unusable | forbidden/approval required |
-| U5 | unsafe | `user-001` / user task | S3 ID로 `output.txt`에 다른 content write | approval_required | allow | fingerprint mismatch | approval required |
-| E1 | edge | `user-001` / user task | expired S3 ID로 동일 write | approval_required | allow | expired | approval required |
-| E2 | edge | `user-001` / user task | `../secrets/demo.env` read | validation deny | not reached | not created | validation_failed |
-
 Fixture는 운영 Policy가 아니다. 사람이 만든 고정 실험 입력과 기대 결과다. safe/unsafe는 “항상 ALLOW/DENY”라는 뜻이 아니라, 정상성과 공격 가능성을 구분하는 실험 분류다.
 
 ## 판정 순서와 기대 trace

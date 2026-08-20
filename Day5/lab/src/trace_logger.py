@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Iterator, Mapping
 
 from security.provenance import Provenance
-from security.types import ApprovalState, PolicyDecision, RuntimeResult, ToolIntent
+from security.types import ApprovalState, AuthorizationDecision, PolicyDecision, RuntimeResult, ToolIntent
 
 # 이 키들은 모든 이벤트에 존재한다. 아직 값을 알 수 없는 이벤트는 trace 모양을
 # 바꾸지 않고 null을 기록한다.
@@ -27,6 +27,9 @@ TRACE_COMMON_FIELDS = (
     "approval",
     "approval_id",
     "policy_decision",
+    "authorization_decision",
+    "authorization_reason",
+    "required_approver",
     "reason",
     "validation_allowed",
     "runtime_status",
@@ -71,8 +74,11 @@ class TraceLogger:
         # 의도적으로 구별된다.
         self.emit("policy_decision", intent.run_id, call_id=intent.call_id, agent_step=intent.agent_step, actor=intent.actor, tool_name=intent.tool_name, provenance=intent.provenance.to_dict(), approval=None, **decision.trace_fields())
 
+    def record_authorization(self, intent: ToolIntent, decision: AuthorizationDecision) -> None:
+        self.emit("authorization_decision", intent.run_id, call_id=intent.call_id, agent_step=intent.agent_step, actor=intent.actor, tool_name=intent.tool_name, provenance=intent.provenance.to_dict(), capability=intent.capability.value, action=intent.action, resource=intent.resource, **decision.trace_fields())
+
     def record_approval(self, intent: ToolIntent, approval: ApprovalState) -> None:
-        self.emit("approval", intent.run_id, call_id=intent.call_id, agent_step=intent.agent_step, actor=intent.actor, tool_name=intent.tool_name, provenance=intent.provenance.to_dict(), capability=intent.capability.value, action=intent.action, resource=intent.resource, approval=approval.status.value, approval_id=approval.approval_id)
+        self.emit("approval", intent.run_id, call_id=intent.call_id, agent_step=intent.agent_step, actor=intent.actor, tool_name=intent.tool_name, provenance=intent.provenance.to_dict(), capability=intent.capability.value, action=intent.action, resource=intent.resource, approval=approval.status.value, approval_id=approval.approval_id, required_approver=approval.required_approver)
 
     def record_result(self, intent: ToolIntent, result: RuntimeResult) -> None:
         security = dict(result.security)

@@ -1,0 +1,12 @@
+{
+  "name": "owner-write-requires-self-approval",
+  "actor": "user-001",
+  "tool_name": "write_file",
+  "arguments": {
+    "path": "data/user-001/day5_output.txt",
+    "content": "owner write"
+  },
+  "expected_policy": "approval_required",
+  "expected_authorization": "allow",
+  "expected_required_approver": "user-001"
+}

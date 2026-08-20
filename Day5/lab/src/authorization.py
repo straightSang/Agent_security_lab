@@ -8,6 +8,7 @@ it never accepts actor identity from LLM tool arguments.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 
 from security.types import (
     AuthorizationDecision,
@@ -18,7 +19,10 @@ from security.types import (
 
 SHARED_MEMBERS = frozenset({"user-001", "user-003"})
 SHARED_APPROVER = "reviewer-001"
-KNOWN_ACTORS = frozenset({"user-001", "user-002", "user-003", SHARED_APPROVER})
+# actor는 LLM argument가 아니라 인증/session/test harness에서만 들어온다.
+# Lab에서는 고정 목록 대신 유효한 actor ID 모양을 허용하여
+# data/{ACTOR_NAME}/** 규칙을 일반화한다.
+ACTOR_ID_PATTERN = re.compile(r"^[a-z][a-z0-9-]{2,63}$")
 
 
 @dataclass(frozen=True)
@@ -37,7 +41,7 @@ def resolve_resource(resource: str | None) -> ResourceMetadata:
         return ResourceMetadata("shared", members=SHARED_MEMBERS)
     if normalized.startswith("data/"):
         parts = normalized.split("/")
-        if len(parts) >= 3 and parts[1].startswith("user-"):
+        if len(parts) >= 3 and ACTOR_ID_PATTERN.fullmatch(parts[1]):
             return ResourceMetadata("private", owner=parts[1])
     if normalized in {"", ".", "notes.txt"}:
         return ResourceMetadata("public_read")
@@ -54,7 +58,7 @@ class AuthorizationEngine:
     """
 
     def authorize(self, intent: ToolIntent) -> AuthorizationDecision:
-        if intent.actor not in KNOWN_ACTORS:
+        if not ACTOR_ID_PATTERN.fullmatch(intent.actor):
             return self._deny(intent, "UNKNOWN_ACTOR")
         if intent.actor == SHARED_APPROVER:
             return self._deny(intent, "REVIEWER_HAS_NO_TOOL_ACCESS")

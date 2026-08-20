@@ -9,11 +9,18 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
+from authorization import AuthorizationEngine
 from security.approval import ApprovalStore
 from security.capability import describe_intent
 from security.policy import PolicyEngine
 from security.provenance import Provenance
-from security.types import ApprovalStatus, Decision, RuntimeResult, ToolIntent
+from security.types import (
+    ApprovalStatus,
+    AuthorizationOutcome,
+    Decision,
+    RuntimeResult,
+    ToolIntent,
+)
 from trace_logger import TraceLogger
 
 PATH_TOOLS = {"read_file", "write_file", "list_files"}
@@ -158,12 +165,13 @@ def calculator(expression: str) -> str:
 class Runtime:
     """권위 있는 실행 경계. allow 또는 유효한 승인 요청만 실행한다."""
 
-    def __init__(self, *, sandbox_root: Path, policy: PolicyEngine, approvals: ApprovalStore, trace_logger: TraceLogger, legacy_authorizer: Callable[[ToolIntent], tuple[bool, str | None]] | None = None) -> None:
+    def __init__(self, *, sandbox_root: Path, policy: PolicyEngine, approvals: ApprovalStore, trace_logger: TraceLogger, authorizer: AuthorizationEngine | None = None, legacy_authorizer: Callable[[ToolIntent], tuple[bool, str | None]] | None = None) -> None:
         self.sandbox_root = sandbox_root.resolve()
         self.sandbox_root.mkdir(parents=True, exist_ok=True)
         self.policy = policy
         self.approvals = approvals
         self.trace = trace_logger
+        self.authorizer = authorizer or AuthorizationEngine()
         self.legacy_authorizer = legacy_authorizer
 
     def execute_tool(self, *, tool_name: str, arguments: Mapping[str, Any], call_id: str, run_id: str, actor: str, provenance: Provenance, approval_id: str | None = None, agent_step: int | None = None) -> RuntimeResult:
@@ -183,11 +191,26 @@ class Runtime:
             self.trace.record_result(intent, result)
             return result
 
+        # Day 5: Policy is a general rule. Authorization answers whether this
+        # trusted actor may perform this action on this exact canonical resource.
+        authorization = self.authorizer.authorize(intent)
+        self.trace.record_authorization(intent, authorization)
+        security_context = {**decision.trace_fields(), **authorization.trace_fields()}
+        if authorization.outcome is AuthorizationOutcome.DENY:
+            result = RuntimeResult.failure(
+                "forbidden", "authorization", tool_name, call_id,
+                "FORBIDDEN", authorization.reason, security=security_context,
+            )
+            self.trace.record_result(intent, result)
+            return result
+
         approval_state = self.approvals.resolve(approval_id)
         if decision.outcome is Decision.APPROVAL_REQUIRED:
             if approval_state.status is not ApprovalStatus.APPROVED or approval_state.intent_fingerprint != intent.fingerprint():
-                pending = self.approvals.request(intent, decision)
-                result = RuntimeResult.failure("approval_required", "approval", tool_name, call_id, "APPROVAL_REQUIRED", decision.reason, security={**decision.trace_fields(), "approval": pending.status.value, "approval_id": pending.approval_id})
+                if authorization.required_approver is None:
+                    raise RuntimeError("approval-required authorization decision lacks required approver")
+                pending = self.approvals.request(intent, decision, required_approver=authorization.required_approver)
+                result = RuntimeResult.failure("approval_required", "approval", tool_name, call_id, "APPROVAL_REQUIRED", decision.reason, security={**security_context, "approval": pending.status.value, "approval_id": pending.approval_id, "required_approver": pending.required_approver})
                 self.trace.record_approval(intent, pending)
                 self.trace.record_result(intent, result)
                 return result
@@ -196,19 +219,19 @@ class Runtime:
         if self.legacy_authorizer is not None:
             allowed, reason = self.legacy_authorizer(intent)
             if not allowed:
-                result = RuntimeResult.failure("forbidden", "authorization", tool_name, call_id, "FORBIDDEN", reason or "legacy authorization denied", security=decision.trace_fields())
+                result = RuntimeResult.failure("forbidden", "authorization", tool_name, call_id, "FORBIDDEN", reason or "legacy authorization denied", security=security_context)
                 self.trace.record_result(intent, result)
                 return result
 
         if decision.outcome is Decision.APPROVAL_REQUIRED:
             # 부작용 직후 프로세스가 죽어도 승인이 재사용되지 않도록 dispatch 전에
             # 소비한다.
-            approval_state = self.approvals.consume(
+            approval_state, consumed_now = self.approvals.consume(
                 approval_id or "",
                 intent_fingerprint=intent.fingerprint(),
             )
-            if approval_state.status is not ApprovalStatus.CONSUMED:
-                result = RuntimeResult.failure("approval_required", "approval", tool_name, call_id, "APPROVAL_NOT_USABLE", "approved approval was not usable", security={**decision.trace_fields(), "approval": approval_state.status.value, "approval_id": approval_state.approval_id})
+            if not consumed_now:
+                result = RuntimeResult.failure("approval_required", "approval", tool_name, call_id, "APPROVAL_NOT_USABLE", "approved approval was not usable", security={**security_context, "approval": approval_state.status.value, "approval_id": approval_state.approval_id, "required_approver": approval_state.required_approver})
                 self.trace.record_approval(intent, approval_state)
                 self.trace.record_result(intent, result)
                 return result
@@ -216,10 +239,10 @@ class Runtime:
 
         try:
             data = self._dispatch(intent, validation)
-            result = RuntimeResult.success(tool_name, call_id, data, security={**decision.trace_fields(), "approval": approval_state.status.value, "approval_id": approval_state.approval_id})
+            result = RuntimeResult.success(tool_name, call_id, data, security={**security_context, "approval": approval_state.status.value, "approval_id": approval_state.approval_id, "required_approver": approval_state.required_approver})
         except Exception as exc:  # 도구 오류를 매핑하며 세부 정보는 로컬에 둔다.
             code = "NOT_FOUND" if isinstance(exc, FileNotFoundError) else "EXECUTION_ERROR"
-            result = RuntimeResult.failure("execution_failed", "runtime", tool_name, call_id, code, str(exc), security={**decision.trace_fields(), "approval": approval_state.status.value, "approval_id": approval_state.approval_id})
+            result = RuntimeResult.failure("execution_failed", "runtime", tool_name, call_id, code, str(exc), security={**security_context, "approval": approval_state.status.value, "approval_id": approval_state.approval_id, "required_approver": approval_state.required_approver})
         self.trace.record_result(intent, result)
         return result
 

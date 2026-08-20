@@ -4,13 +4,13 @@
 
 ## 목표
 
-**승인 후 실제 실행까지 완결하는 Approval UX와 Authorization gate**
+**승인 후 실제 실행까지 완결하는 Approval과 Authorization gate**
 
 Day 4는 `provenance → trust → capability/resource → policy → approval → Authorization gate → runtime → trace`를 만들어 LLM Tool Call(행동)을 제한할 수 있었다. Day 5는 그 흐름을 유지하면서 사용자의 신원검증과 pending approval, 접근가능 자원 설정을 추가한다.
 <br>
 이때의 approval record은 Authorization gate를 거쳐  actor-resource 자격이 확인된 사용자에 한하여 요청된다.
 즉 Day 5는 Day 4의 “어떤 종류의 행동이 가능한가?”에 더해 “누가, 어느 자원에 접근할 수 있는가?”를 Runtime에서 강제하므로
-Policy가 `ALLOW` 또는 `APPROVAL_REQUIRED`라고 해도, **현재 actor가 이 resource/action의 대상**인지에 따라서 Runtime에서 차단될 수도 있다.
+Policy가 `ALLOW` 또는 `APPROVAL_REQUIRED`라고 해도, 현재 actor가 이 resource/action의 대상인지 여부에 따라서 Runtime에서 차단될 수도 있다.
 <br>
 
 #### 흐름도
@@ -52,10 +52,10 @@ RuntimeResult         = FORBIDDEN
 - 즉, Approved는 특정 Intent를 한 건만 실행할 수 있는 상태 변경 조건에 불과하다.
 - 현재 코드에서는 ApprovalStore.request()가 APPROVAL_REQUIRED 결정이 난 요청으로 apr_<랜덤 UUID> 형태를 만든 뒤, intent_fingerprint와 함께 저장한다.
 ```text
-PolicyDecision        = APPROVAL
+PolicyDecision        = APPROVAL_REQUIRED
+AuthorizationDecision = ALLOW
 Approval              = APPROVED
-AuthorizationDecision = DENY
-RuntimeResult         = FORBIDDEN
+RuntimeResult         = success 또는 approval consumed
 ``` 
 
 3. Approved 승인 과정
@@ -102,8 +102,8 @@ Day 5의 새 실행 흐름은 다음과 같다.
 ```text
 user_task / tool observation
   -> provenance: trust_label
-  -> LLM iference
-  -> input_schema_validate
+  -> LLM inference
+  -> tool proposal schema_validate
   -> ToolIntent(capability, resource, action, actor)
   -> policy_check
   -> authorization_check             # Day 5 추가
@@ -117,9 +117,9 @@ user_task / tool observation
 
 | actor | resource | action |
 |---|---|---|
-|  |  |  |
-|  |  |  |
-|  |  |  |
+| 모든 인증된 `{ACTOR_NAME}` | `data/{ACTOR_NAME}/**` | 해당 actor만 read/write. write는 본인 승인 필요 |
+| `user-001`, `user-003` | `data/shared/**` | read 가능; write는 `reviewer-001` 승인 필요 |
+| 다른 actor 또는 미등록 resource | 다른 actor의 private/shared resource | deny |
 |  |  |  |
 
 ## Policy · Authorization · Approval은 다르다

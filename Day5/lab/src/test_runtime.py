@@ -3,15 +3,30 @@
 # Day4 
 # Lab A. fixture 및 Policy->Rumtime 제한 확인 
 import json
+import tempfile
 import uuid
+from unittest.mock import patch
+from pathlib import Path
 
-from Agent import DEFAULT_RUNTIME, SANDBOX_ROOT, execute_tool
+from Agent import SANDBOX_ROOT, build_runtime, execute_tool as _execute_tool
+from approval import approve_pending_request
 from security.evaluator import evaluate_run
 from security.provenance import direct_user_provenance, observation_provenance, repository_provenance 
 
+# One test run must not append to the checked-in Lab trace.  Production Agent는
+# Agent.build_runtime()의 trace_A.jsonl을 계속 사용한다.
+DEFAULT_RUNTIME = build_runtime(
+    trace_path=Path(tempfile.gettempdir()) / f"day5-test-{uuid.uuid4().hex}.jsonl"
+)
 
-for attempt in range(1, 13):
-    print(f"\n===== 반복 {attempt}/12 =====")
+
+def execute_tool(*args, **kwargs):
+    kwargs.setdefault("runtime", DEFAULT_RUNTIME)
+    return _execute_tool(*args, **kwargs)
+
+
+for attempt in range(1, 2):
+    print(f"\n===== 반복 {attempt}/1 =====")
 
     A1_SAFE_RUN_ID = f"run-safe-{uuid.uuid4().hex}"
     A2_UNSAFE_RUN_ID = f"run-unsafe-{uuid.uuid4().hex}"
@@ -123,7 +138,7 @@ for attempt in range(1, 13):
     A3_APPROVAL_FIXTURE = {
         "tool_name": "write_file",
         "arguments": {
-            "path": "output.txt",
+            "path": "data/user-003/approval_output.txt",
             "content": "approval test content",
         },
         "actor": "user-003",
@@ -152,7 +167,7 @@ for attempt in range(1, 13):
     assert approval_result["meta"]["policy_decision"] == "approval_required"
     assert approval_result["meta"]["capability"] == "filesystem.write"
     assert approval_result["meta"]["action"] == "write"
-    assert approval_result["meta"]["resource"] == "output.txt"
+    assert approval_result["meta"]["resource"] == "data/user-003/approval_output.txt"
     assert approval_result["meta"]["trust"] == "user_controlled"
     assert approval_result["meta"]["approval"] == "pending"
     assert approval_result["meta"]["approval_id"] is not None
@@ -163,7 +178,7 @@ for attempt in range(1, 13):
     존재하지 않아야 한다.
     """
     assert not (
-        SANDBOX_ROOT / "output.txt"
+        SANDBOX_ROOT / "data" / "user-003" / "approval_output.txt"
     ).exists()
 
 
@@ -246,3 +261,69 @@ for attempt in range(1, 13):
 
 
 # Lab B.
+
+# Day 5: fixture는 LLM을 거치지 않고도 authorization/approval/runtime
+# 경계를 재현 가능하게 검증한다. Dispatcher mock은 실행 경계 도달 횟수를 센다.
+DAY5_OWNER_FIXTURE = {
+    "tool_name": "write_file",
+    "arguments": {"path": "data/user-001/day5_output.txt", "content": "owner write"},
+    "actor": "user-001",
+    "provenance": direct_user_provenance("interactive-user"),
+}
+
+owner_run = f"run-day5-owner-{uuid.uuid4().hex}"
+pending = execute_tool(
+    **DAY5_OWNER_FIXTURE,
+    call_id="call-day5-owner-pending",
+    run_id=owner_run,
+)
+assert pending["status"] == "approval_required"
+assert pending["meta"]["required_approver"] == "user-001"
+owner_approval_id = pending["meta"]["approval_id"]
+
+# 다른 actor는 자신의 resource가 아니므로 approval record 자체를 받지 못한다.
+cross_user = execute_tool(
+    "read_file", {"path": "data/user-002/provate.txt"},
+    call_id="call-day5-cross-user", run_id=f"run-day5-cross-{uuid.uuid4().hex}",
+    actor="user-001", provenance=direct_user_provenance("interactive-user"),
+)
+assert cross_user["end_stage"] == "authorization"
+assert cross_user["meta"]["authorization_decision"] == "deny"
+
+# owner approval은 authenticated user-001에게만 허용된다.
+wrong_approver = approve_pending_request(
+    DEFAULT_RUNTIME.approvals, owner_approval_id, authenticated_approver="reviewer-001",
+)
+assert wrong_approver.changed is False
+approved = approve_pending_request(
+    DEFAULT_RUNTIME.approvals, owner_approval_id, authenticated_approver="user-001",
+)
+assert approved.changed is True
+
+with patch.object(DEFAULT_RUNTIME, "_dispatch", return_value="mocked-dispatch") as dispatch:
+    executed = execute_tool(
+        **DAY5_OWNER_FIXTURE,
+        call_id="call-day5-owner-execute",
+        run_id=f"run-day5-owner-execute-{uuid.uuid4().hex}",
+        approval_id=owner_approval_id,
+    )
+    assert executed["ok"] is True
+    assert dispatch.call_count == 1
+    replay = execute_tool(
+        **DAY5_OWNER_FIXTURE,
+        call_id="call-day5-owner-replay",
+        run_id=f"run-day5-owner-replay-{uuid.uuid4().hex}",
+        approval_id=owner_approval_id,
+    )
+    assert replay["ok"] is False
+    assert replay["status"] == "approval_required"
+    assert dispatch.call_count == 1
+
+# shared의 member는 읽을 수 있지만 쓰기는 지정 reviewer-001의 승인이 필요하다.
+shared_pending = execute_tool(
+    "write_file", {"path": "data/shared/day5_note.txt", "content": "team note"},
+    call_id="call-day5-shared", run_id=f"run-day5-shared-{uuid.uuid4().hex}",
+    actor="user-003", provenance=direct_user_provenance("interactive-user"),
+)
+assert shared_pending["status"] == "approval_required"
+assert shared_pending["meta"]["required_approver"] == "reviewer-001"

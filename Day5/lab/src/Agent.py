@@ -23,6 +23,7 @@ from runtime import (
     validate_arguments,
     validate_tool_call as _validate_tool_call,
 )
+from authorization import AuthorizationEngine
 from security.approval import ApprovalStore
 from security.policy import PolicyEngine
 from security.provenance import direct_user_provenance
@@ -75,6 +76,7 @@ def build_runtime(*, trace_path: Path = TRACE_PATH) -> Runtime:
         policy=PolicyEngine(),
         approvals=ApprovalStore(),
         trace_logger=TraceLogger(trace_path),
+        authorizer=AuthorizationEngine(),
     )
 
 
