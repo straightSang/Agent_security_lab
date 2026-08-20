@@ -175,28 +175,45 @@ class Runtime:
         self.legacy_authorizer = legacy_authorizer
 
     def execute_tool(self, *, tool_name: str, arguments: Mapping[str, Any], call_id: str, run_id: str, actor: str, provenance: Provenance, approval_id: str | None = None, agent_step: int | None = None) -> RuntimeResult:
+        # 1. Validation
         validation = validate_tool_call(tool_name, arguments, self.sandbox_root)
+        
         if not validation["allowed"]:
             result = RuntimeResult.failure("validation_failed", "validation", tool_name, call_id, "INVALID_ARGUMENT", validation["reason"])
             self.trace.record_validation(run_id, tool_name, call_id, provenance, validation, result, actor=actor, agent_step=agent_step)
+            
             return result
 
         capability, action, resource = describe_intent(tool_name, arguments, validation, self.sandbox_root)
+        
+        # 2. Generate ToolIntent 
         intent = ToolIntent(run_id=run_id, call_id=call_id, actor=actor, tool_name=tool_name, arguments=dict(arguments), provenance=provenance, capability=capability, action=action, resource=resource, agent_step=agent_step)
+        
         self.trace.record_intent(intent)
+
+        # 3. Policy Decision
         decision = self.policy.evaluate(intent)
+
         self.trace.record_policy(intent, decision)
+
         if decision.outcome is Decision.DENY:
             result = RuntimeResult.failure("denied", "policy", tool_name, call_id, "POLICY_DENIED", decision.reason, security=decision.trace_fields())
+            
             self.trace.record_result(intent, result)
+
             return result
 
         # Day 5: Policy is a general rule. Authorization answers whether this
         # trusted actor may perform this action on this exact canonical resource.
         authorization = self.authorizer.authorize(intent)
+
+        # 4. Authorization
         self.trace.record_authorization(intent, authorization)
         security_context = {**decision.trace_fields(), **authorization.trace_fields()}
+
+            # 1) DENY
         if authorization.outcome is AuthorizationOutcome.DENY:
+
             result = RuntimeResult.failure(
                 "forbidden", "authorization", tool_name, call_id,
                 "FORBIDDEN", authorization.reason, security=security_context,
@@ -205,83 +222,137 @@ class Runtime:
             return result
 
         approval_state = self.approvals.resolve(approval_id)
+
+            # 2) APPROVAL_REQUIRED
         if decision.outcome is Decision.APPROVAL_REQUIRED:
+
             if approval_state.status is not ApprovalStatus.APPROVED or approval_state.intent_fingerprint != intent.fingerprint():
+                
                 if authorization.required_approver is None:
+
                     raise RuntimeError("approval-required authorization decision lacks required approver")
+                       
+                """
+                만약 approved_id 가 안 맞으면
+                새로운 pending approval record를 만들고 바로 반환한다.
+                """.
                 pending = self.approvals.request(intent, decision, required_approver=authorization.required_approver)
+                
                 result = RuntimeResult.failure("approval_required", "approval", tool_name, call_id, "APPROVAL_REQUIRED", decision.reason, security={**security_context, "approval": pending.status.value, "approval_id": pending.approval_id, "required_approver": pending.required_approver})
+                
                 self.trace.record_approval(intent, pending)
                 self.trace.record_result(intent, result)
+
                 return result
+
             self.trace.record_approval(intent, approval_state)
 
+
         if self.legacy_authorizer is not None:
+
             allowed, reason = self.legacy_authorizer(intent)
+
             if not allowed:
+                
                 result = RuntimeResult.failure("forbidden", "authorization", tool_name, call_id, "FORBIDDEN", reason or "legacy authorization denied", security=security_context)
                 self.trace.record_result(intent, result)
+
                 return result
 
+
         if decision.outcome is Decision.APPROVAL_REQUIRED:
-            # 부작용 직후 프로세스가 죽어도 승인이 재사용되지 않도록 dispatch 전에
-            # 소비한다.
+
+            """
+            consumed_now=True인 호출만 Dispatcher에 들어간다. 
+            같은 approval ID를 다시 제출하면 이미 CONSUMED이므로 consumed_now=False가 되고 실행되지 않는다.
+            consume()은 dispatch 직전에 approval을 일회용으로 바꾸는 단계이다. 승인이 재사용되지 않도록 한다.
+            """
             approval_state, consumed_now = self.approvals.consume(
                 approval_id or "",
                 intent_fingerprint=intent.fingerprint(),
             )
             if not consumed_now:
                 result = RuntimeResult.failure("approval_required", "approval", tool_name, call_id, "APPROVAL_NOT_USABLE", "approved approval was not usable", security={**security_context, "approval": approval_state.status.value, "approval_id": approval_state.approval_id, "required_approver": approval_state.required_approver})
+               
                 self.trace.record_approval(intent, approval_state)
                 self.trace.record_result(intent, result)
+                
                 return result
+
             self.trace.record_approval(intent, approval_state)
 
+        # 3) ALLOW, APPROVE_REQUIRED -> APPROVED
+        """
+        _dispatch()가 실제 도구 함수 호출이다.
+        : Validation, Policy, Authorization, Approval 조건을 모두 통과해야 한다.
+        """
         try:
             data = self._dispatch(intent, validation)
+            
             result = RuntimeResult.success(tool_name, call_id, data, security={**security_context, "approval": approval_state.status.value, "approval_id": approval_state.approval_id, "required_approver": approval_state.required_approver})
+        
         except Exception as exc:  # 도구 오류를 매핑하며 세부 정보는 로컬에 둔다.
             code = "NOT_FOUND" if isinstance(exc, FileNotFoundError) else "EXECUTION_ERROR"
             result = RuntimeResult.failure("execution_failed", "runtime", tool_name, call_id, code, str(exc), security={**security_context, "approval": approval_state.status.value, "approval_id": approval_state.approval_id, "required_approver": approval_state.required_approver})
+        
         self.trace.record_result(intent, result)
+        
         return result
+
 
     def _dispatch(self, intent: ToolIntent, validation: Mapping[str, Any]) -> str:
         path = validation["resolved_path"]
+
         if intent.tool_name == "calculator":
             return calculator(str(intent.arguments["expression"]))
+
         if intent.tool_name == "get_time":
             return datetime.now(timezone.utc).isoformat()
+
         if intent.tool_name == "read_file":
             return self._read_file(path)
+
         if intent.tool_name == "write_file":
             return self._write_file(path, str(intent.arguments["content"]))
+
         if intent.tool_name == "list_files":
             return self._list_files(path)
+
         if intent.tool_name == "run_command":
             return self._run_command(str(validation["command_base"]), path)
         raise RuntimeError("unknown tool reached dispatch")
 
     def _read_file(self, path: Path) -> str:
+
         if not path.is_file():
             raise FileNotFoundError(f"file not found: {path.name}")
+
         return path.read_text(encoding="utf-8")
 
     def _write_file(self, path: Path, content: str) -> str:
+
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
+
         return f"Wrote file: {path.relative_to(self.sandbox_root).as_posix()}"
+
 
     def _list_files(self, path: Path) -> str:
         if not path.is_dir():
             raise NotADirectoryError("not a directory")
+
         return "\n".join(sorted(child.relative_to(self.sandbox_root).as_posix() for child in path.iterdir()))
 
+
     def _run_command(self, command_base: str, path: Path | None) -> str:
+
         if command_base == "pwd":
             return "sandbox"
+
         if command_base == "ls" and path is not None:
             return self._list_files(path)
+
         if command_base == "cat" and path is not None:
             return self._read_file(path)
+
         raise RuntimeError("policy/runtime mismatch: command reached execution")

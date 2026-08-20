@@ -23,7 +23,7 @@ from runtime import (
     validate_arguments,
     validate_tool_call as _validate_tool_call,
 )
-from authorization import AuthorizationEngine
+from security.authorization import AuthorizationEngine
 from security.approval import ApprovalStore
 from security.policy import PolicyEngine
 from security.provenance import direct_user_provenance
@@ -137,6 +137,7 @@ def run_responses_agent(user_input: str) -> str:
     try:
         from openai import OpenAI
     except ImportError as exc:  # pragma: no cover - environment dependent
+    
         raise RuntimeError("Install requirements.txt to use the API loop") from exc
 
     api_key = os.environ.get("OPENAI_API_KEY")

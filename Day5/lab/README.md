@@ -164,6 +164,37 @@ lab/src/sandbox/
 
 actor는 LLM output이나 README에서 받지 않는다. Lab에서는 test harness가 Runtime에 전달하고, 실제 시스템에서는 인증된 session/OIDC subject가 전달해야 한다.
 
+## 파일별 역할과 호출 관계
+
+`Agent_v0.4.py`는 사용자 입력을 받아 선택적으로 LLM을 호출하는 **Agent loop**다. 반면 `Agent.py`는 Runtime을 조립하고 기존 호출 형태를 Runtime으로 연결하는 **composition root·호환 wrapper**다. 실제 enforcement의 중심은 `runtime.py/Runtime`이다.
+
+| 파일 | 주된 역할 | 직접 실행 권한 여부 |
+|---|---|---|
+| `Agent_v0.4.py` | 사용자 입력, Responses API 호출, LLM Tool Proposal 수신, approval UX(`/approve`) | 없음. 모든 proposal을 Runtime에 전달 |
+| `Agent.py` | `Runtime`, Policy, ApprovalStore, AuthorizationEngine 조립; 기존 `execute_tool()` 호환 wrapper 제공 | 직접 실행하지 않음 |
+| `runtime.py` | validation부터 policy/authz/approval/consume까지 강제하고, 통과한 호출만 `_dispatch()` | 있음. 유일한 Dispatcher 경계 |
+| `security/types.py` | ToolIntent, PolicyDecision, AuthorizationDecision, ApprovalState 같은 공통 계약 정의 | 없음 |
+| `security/policy.py` / `security/permission.py` | provenance/trust, capability, 일반 resource scope에 대한 Policy 판단 | 없음 |
+| `authorization.py` | actor·canonical resource·action 관계를 검사하는 `AuthorizationEngine` | 없음. ALLOW/DENY와 required approver만 반환 |
+| `security/approval.py` | approval ID, TTL, fingerprint, pending/approved/consumed 상태를 저장·전이 | 없음 |
+| `approval.py` | 인증된 reviewer/owner가 승인 요청을 제어하는 control-plane facade | 없음. approve는 state만 바꿈 |
+| `trace_logger.py` | validation/policy/authz/approval/runtime 증거를 JSONL에 기록 | 없음 |
+| `security/evaluator.py` | trace를 읽어 false allow/block, approval bypass 등 지표 계산 | 없음 |
+| `test_runtime.py` / `fixtures/*.json` | 사람이 정의한 정상·위험·경계 사례로 Runtime을 재현 검증 | Dispatcher mock으로 도달 횟수만 관찰 |
+
+호출 흐름은 다음과 같다.
+
+```text
+사용자 입력
+  -> Agent_v0.4.py/run_responses_agent()
+  -> LLM: Tool Proposal 생성
+  -> Agent_v0.4.py/execute_proposal()
+  -> Agent.py 또는 runtime.py/Runtime.execute_tool()
+  -> validation -> Policy -> Authorization -> Approval -> consume
+  -> runtime.py/Runtime._dispatch()
+  -> TraceLogger / Evaluator
+```
+
 ## 승인 UX의 최소 계약
 
 approval ID는 Agent ID, DID, 범용 권한 토큰이 아니다. 특정 승인 record의 랜덤 조회 키다. 승인자는 자연어 요약만 보지 않고 아래 구조화된 정보를 확인해야 한다.
