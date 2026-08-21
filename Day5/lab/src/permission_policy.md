@@ -51,3 +51,20 @@ write_file("data/user-001/out.txt")        -> repository provenance면 deny (unt
 특히 untrusted provenance는 2단계에서 `deny`되므로 approval ID로 우회할 수 없다. Policy가 `ALLOW` 또는 `APPROVAL_REQUIRED`여도 Authorization이 `DENY`이면 실행되지 않는다.
 
 실행 설정은 `security/permission.py`, Policy 해석은 `security/policy.py`, actor-resource-action 해석은 `authorization.py`에 있다. Agent 코드에 별도 permission 목록을 만들지 않는다.
+
+## 필수 fixture 실험 계약
+
+권한 정책 변경은 E01~E09 fixture로 검증한다. 각 독립 E case는 원본
+`sandbox/`를 수정하지 않고 temporary clone에서 시작한다. 시작 이벤트
+`seed_snapshot`에는 모든 seed 파일의 `path`, `size`, content `SHA-256`과
+`seed_digest`가 남는다. E05→E06→E07만 approval 상태 전이가 목적이므로 같은
+clone과 Runtime을 공유한다.
+
+각 `policy_decision`과 `authorization_decision`에는 `decision_digest`, 각
+`runtime_result`에는 `result_digest`가 남는다. `test_runtime.py`의
+`print_and_assert_case()`는 기대 Policy/AuthZ/status/end_stage를 trace의 실제
+값과 비교해 diff를 출력하며, 차이가 있거나 `trace_completeness`가 false이면
+fixture를 실패시킨다.
+
+기본 trace는 `traces/trace_D5_EXP.jsonl`에 누적된다. 독립 파일이 필요하면
+`DAY5_TRACE_PATH` 환경변수를 지정한다.

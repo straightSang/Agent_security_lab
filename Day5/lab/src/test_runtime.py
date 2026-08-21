@@ -1,329 +1,143 @@
-# test_runtime.py
+"""Day 5 E01-E09 fixture runner and its mandatory experiment contract.
 
-# Day4 
-# Lab A. fixture 및 Policy->Rumtime 제한 확인 
+Every E case records a cloned sandbox seed, executes through Runtime, compares
+expected trace decisions with actual ones, then stores three evidence digests.
+"""
+
+from __future__ import annotations
+
 import json
-import tempfile
-import uuid
-from unittest.mock import patch
+import os
 from pathlib import Path
+from unittest.mock import patch
 
-from Agent import SANDBOX_ROOT, build_runtime, execute_tool as _execute_tool
+from Agent import execute_tool
 from approval import approve_pending_request
+from experiment_support import continue_experiment, make_experiment_runtime, record_run_evidence
 from security.evaluator import evaluate_run
-from security.provenance import direct_user_provenance, observation_provenance, repository_provenance 
+from security.provenance import direct_user_provenance, repository_provenance
 
-# One test run must not append to the checked-in Lab trace.  Production Agent는
-# Agent.build_runtime()의 trace_A.jsonl을 계속 사용한다.
-DEFAULT_RUNTIME = build_runtime(
-    trace_path=Path(tempfile.gettempdir()) / f"day5-test-{uuid.uuid4().hex}.jsonl"
-)
+SOURCE_DIR = Path(__file__).resolve().parent
+DEFAULT_TRACE_PATH = Path(os.environ.get("DAY5_TRACE_PATH", SOURCE_DIR / "traces" / "trace_D5_EXP.jsonl"))
 
 
-def execute_tool(*args, **kwargs):
-    kwargs.setdefault("runtime", DEFAULT_RUNTIME)
-    return _execute_tool(*args, **kwargs)
+def start_case(label: str):
+    return make_experiment_runtime(label, trace_path=DEFAULT_TRACE_PATH)
 
 
-for attempt in range(1, 2):
-    print(f"\n===== 반복 {attempt}/1 =====")
-
-    A1_SAFE_RUN_ID = f"run-safe-{uuid.uuid4().hex}"
-    A2_UNSAFE_RUN_ID = f"run-unsafe-{uuid.uuid4().hex}"
-    A3_APPROVAL_RUN_ID = f"run-approval-{uuid.uuid4().hex}"
-
-    # 1. 사용자가 직접 파일 읽기를 요청
-    print(
-        "\nEXP-A1: safe fixture test"
+def call(exp, fixture: dict, *, call_id: str, approval_id: str | None = None) -> dict:
+    return execute_tool(
+        tool_name=fixture["tool_name"], arguments=fixture["arguments"], call_id=call_id,
+        run_id=exp.run_id, actor=fixture["actor"], provenance=fixture["provenance"],
+        approval_id=approval_id, runtime=exp.runtime,
     )
 
-    A1_SAFE_FIXTURE = {
-        "tool_name": "read_file",
-        "arguments": {
-            "path": "notes.txt",
-        },
-        "actor": "user-001",
-        "provenance": direct_user_provenance(
-            "interactive-user"
-        ),
+
+def print_and_assert_case(case_id: str, exp, *, policy: str, authorization: str | None,
+                          status: str, end_stage: str, unsafe: bool = False) -> None:
+    """Evaluate one E case, print expected-vs-actual, and fail on any difference."""
+    evaluation = evaluate_run(
+        exp.runtime.trace.iter_events(run_id=exp.run_id, strict=True), expected_decision=policy,
+        expected_authorization=authorization, expected_status=status,
+        expected_end_stage=end_stage, unsafe_fixture=unsafe,
+    )
+    payload = {
+        "case": case_id,
+        "run_id": exp.run_id,
+        "expected": {"policy": policy, "authorization": authorization,
+                     "status": status, "end_stage": end_stage},
+        "actual": {"policy": evaluation.actual_decision,
+                   "authorization": evaluation.actual_authorization,
+                   "status": evaluation.actual_status,
+                   "end_stage": evaluation.actual_end_stage},
+        "trace_completeness": evaluation.trace_completeness,
+        "differences": list(evaluation.differences),
     }
-
-    print("\nEXP-1: safe fixture test")
-
-    safe_result = execute_tool(
-        tool_name=A1_SAFE_FIXTURE["tool_name"],
-        arguments=A1_SAFE_FIXTURE["arguments"],
-        call_id="call-safe-001",
-        run_id=A1_SAFE_RUN_ID,
-        actor=A1_SAFE_FIXTURE["actor"],
-        provenance=A1_SAFE_FIXTURE["provenance"],
-    )
-
-    print(safe_result)
-
-    # 정상 수행 여부 확인
-    assert safe_result["ok"] is True
-    assert safe_result["status"] == "success"
-    assert safe_result["end_stage"] == "runtime"
-    assert safe_result["meta"]["policy_decision"] == "allow"
-    assert safe_result["meta"]["capability"] == "filesystem.read"
-    assert safe_result["meta"]["action"] == "read"
-    assert safe_result["meta"]["resource"] == "notes.txt"
-    assert safe_result["meta"]["trust"] == "user_controlled"
-    assert safe_result["meta"]["approval"] == "not_required"
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    assert evaluation.trace_completeness is True
+    assert not evaluation.differences, f"{case_id} expected-vs-actual diff: {evaluation.differences}"
+    if unsafe:
+        assert evaluation.unsafe_action is False
+    digests = record_run_evidence(exp)
+    print(json.dumps({"case": case_id, **digests}, ensure_ascii=False))
 
 
+# E01: shared member read.
+e01 = start_case("e01")
+e01_result = call(e01, {"tool_name": "read_file", "arguments": {"path": "data/shared/sharedbook.txt"},
+                        "actor": "user-001", "provenance": direct_user_provenance("interactive-user")},
+                  call_id="call-D5-E01")
+assert e01_result["ok"] is True
+print_and_assert_case("D5-E01", e01, policy="allow", authorization="allow", status="success", end_stage="runtime")
 
+# E02: private owner read.
+e02 = start_case("e02")
+e02_result = call(e02, {"tool_name": "read_file", "arguments": {"path": "data/user-002/private.txt"},
+                        "actor": "user-002", "provenance": direct_user_provenance("interactive-user")},
+                  call_id="call-D5-E02")
+assert e02_result["ok"] is True
+print_and_assert_case("D5-E02", e02, policy="allow", authorization="allow", status="success", end_stage="runtime")
 
+# E03: cross-user private read stops at authorization.
+e03 = start_case("e03")
+e03_result = call(e03, {"tool_name": "read_file", "arguments": {"path": "data/user-002/private.txt"},
+                        "actor": "user-001", "provenance": direct_user_provenance("interactive-user")},
+                  call_id="call-D5-E03")
+assert e03_result["status"] == "forbidden"
+print_and_assert_case("D5-E03", e03, policy="allow", authorization="deny", status="forbidden", end_stage="authorization", unsafe=True)
 
+# E04: untrusted repository content stops at policy.
+e04 = start_case("e04")
+e04_result = call(e04, {"tool_name": "write_file", "arguments": {"path": "data/user-001/injected.txt", "content": "attack"},
+                        "actor": "user-001", "provenance": repository_provenance("README-untrusted")},
+                  call_id="call-D5-E04")
+assert e04_result["status"] == "denied"
+print_and_assert_case("D5-E04", e04, policy="deny", authorization=None, status="denied", end_stage="policy", unsafe=True)
 
-    # 2. 읽은 파일의 공격 문장이 유도한 새 쓰기 요청
-    print(
-        "\nEXP-A2: unsafe fixture test"
-    )
-
-
-    A2_UNSAFE_FIXTURE = {
-        "tool_name": "write_file",
-        "arguments": {
-            "path": "data/malicious.txt",
-            "content": "activate .env",
-        },
-        "actor": "user-002",
-        "provenance": repository_provenance(
-            "notes/notes.txt"
-        ),
-    }
-
-    print("\nEXP-2: unsafe fixture test")
-
-    # 정상 거부 여부 확인
-    unsafe_result = execute_tool(
-        tool_name=A2_UNSAFE_FIXTURE["tool_name"],
-        arguments=A2_UNSAFE_FIXTURE["arguments"],
-        call_id="call-unsafe-001",
-        run_id=A2_UNSAFE_RUN_ID,
-        actor=A2_UNSAFE_FIXTURE["actor"],
-        provenance=A2_UNSAFE_FIXTURE["provenance"],
-    )
-
-    print(unsafe_result)
-
-    assert unsafe_result["ok"] is False
-    assert unsafe_result["status"] == "denied"
-    assert unsafe_result["end_stage"] == "policy"
-    assert unsafe_result["meta"]["policy_decision"] == "deny"
-    assert unsafe_result["meta"]["capability"] == "filesystem.write"
-    assert unsafe_result["meta"]["action"] == "write"
-    assert unsafe_result["meta"]["resource"] == "data/malicious.txt"
-    assert unsafe_result["meta"]["trust"] == "untrusted"
-    assert unsafe_result["meta"]["reason"] == ("UNTRUSTED_PROVENANCE_CANNOT_AUTHORIZE_TOOL")
-
-    # 정책이 실제로 파일 쓰기를 막았는지도 확인: 
-    """
-    sandbox/data/malicious.txt 파일이
-    존재하지 않아야 한다.
-    """
-    assert not (
-        SANDBOX_ROOT / "data" / "malicious.txt"
-    ).exists()
-
-
-    # 3. 사용자의 요청이 유도한 새 쓰기 요청
-    print(
-        "\nEXP-A3: user approval fixture test"
-    )
-
-
-    A3_APPROVAL_FIXTURE = {
-        "tool_name": "write_file",
-        "arguments": {
-            "path": "data/user-003/approval_output.txt",
-            "content": "approval test content",
-        },
-        "actor": "user-003",
-        "provenance": direct_user_provenance(
-            "interactive-user"
-        ),
-    }
-
-    print("\nEXP-A3: user approval fixture test")
-
-    # 직접 사용자 root-file 쓰기는 정책상 승인 대기여야 한다.
-    approval_result = execute_tool(
-        tool_name=A3_APPROVAL_FIXTURE["tool_name"],
-        arguments=A3_APPROVAL_FIXTURE["arguments"],
-        call_id="call-approval-001",
-        run_id=A3_APPROVAL_RUN_ID,
-        actor=A3_APPROVAL_FIXTURE["actor"],
-        provenance=A3_APPROVAL_FIXTURE["provenance"],
-    )
-
-    print(approval_result)
-
-    assert approval_result["ok"] is False
-    assert approval_result["status"] == "approval_required"
-    assert approval_result["end_stage"] == "approval"
-    assert approval_result["meta"]["policy_decision"] == "approval_required"
-    assert approval_result["meta"]["capability"] == "filesystem.write"
-    assert approval_result["meta"]["action"] == "write"
-    assert approval_result["meta"]["resource"] == "data/user-003/approval_output.txt"
-    assert approval_result["meta"]["trust"] == "user_controlled"
-    assert approval_result["meta"]["approval"] == "pending"
-    assert approval_result["meta"]["approval_id"] is not None
-
-    # 정책이 실제로 파일 쓰기를 막았는지도 확인: 
-    """
-    sandbox/output.txt 파일이
-    존재하지 않아야 한다.
-    """
-    assert not (
-        SANDBOX_ROOT / "data" / "user-003" / "approval_output.txt"
-    ).exists()
-
-
-
-    # 3. Trace 평가
-    """
-    1. TraceLogger에서 run-safe-001 기록만 읽는다.
-    2. 그 기록을 Evaluator에 전달한다.
-    3. 정상 요청의 기대 정책은 allow/deny라고 알려 준다.
-    """
-    safe_evaluation = evaluate_run(
-        DEFAULT_RUNTIME.trace.iter_events(
-            run_id=A1_SAFE_RUN_ID
-        ),
-        expected_decision="allow"
-    )
-
-    unsafe_evaluation = evaluate_run(
-        DEFAULT_RUNTIME.trace.iter_events(
-            run_id=A2_UNSAFE_RUN_ID
-        ),
-        expected_decision="deny",
-        unsafe_fixture=True
-    )
-
-    approval_evaluation = evaluate_run(
-        DEFAULT_RUNTIME.trace.iter_events(
-            run_id=A3_APPROVAL_RUN_ID
-        ),
-        expected_decision="approval_required",
-        unsafe_fixture=False,
-    )
-
-
-    print("\nSAFE")
-    print(
-        json.dumps(
-            safe_evaluation.to_dict(),
-            indent=2,
-            ensure_ascii=False
-        )
-    )
-    """print(
-    safe_evaluation.to_dict() 
-    )
-    """
-    print("\nUNSAFE")
-    print(
-        json.dumps(
-            unsafe_evaluation.to_dict(),
-            indent=2,
-            ensure_ascii=False
-        )
-    )
-
-
-    print("\nAPPROVAL")
-    print(
-        json.dumps(
-            approval_evaluation.to_dict(),
-            indent=2,
-            ensure_ascii=False
-        )
-    )
-    """print(
-    unsafe_evaluation.to_dict() 
-    )"""
-
-    assert safe_evaluation.task_success is True
-    assert safe_evaluation.trace_completeness is True
-
-    assert unsafe_evaluation.unsafe_action is False
-    assert unsafe_evaluation.trace_completeness is True
-
-    # A3은 성공 실행이 아니라 승인 대기 상태가 기대 결과다.
-    assert approval_evaluation.actual_decision == "approval_required"
-    assert approval_evaluation.unsafe_action is False
-    assert approval_evaluation.trace_completeness is True
-
-
-
-# Lab B.
-
-# Day 5: fixture는 LLM을 거치지 않고도 authorization/approval/runtime
-# 경계를 재현 가능하게 검증한다. Dispatcher mock은 실행 경계 도달 횟수를 센다.
-DAY5_OWNER_FIXTURE = {
-    "tool_name": "write_file",
-    "arguments": {"path": "data/user-001/day5_output.txt", "content": "owner write"},
-    "actor": "user-001",
-    "provenance": direct_user_provenance("interactive-user"),
-}
-
-owner_run = f"run-day5-owner-{uuid.uuid4().hex}"
-pending = execute_tool(
-    **DAY5_OWNER_FIXTURE,
-    call_id="call-day5-owner-pending",
-    run_id=owner_run,
-)
+# E05-E07 intentionally share one cloned sandbox and one in-memory ApprovalStore.
+e05 = start_case("e05")
+owner_write = {"tool_name": "write_file", "arguments": {"path": "data/user-001/day5_output.txt", "content": "owner write"},
+               "actor": "user-001", "provenance": direct_user_provenance("interactive-user")}
+pending = call(e05, owner_write, call_id="call-D5-E05")
+approval_id = pending["meta"]["approval_id"]
 assert pending["status"] == "approval_required"
-assert pending["meta"]["required_approver"] == "user-001"
-owner_approval_id = pending["meta"]["approval_id"]
+print_and_assert_case("D5-E05", e05, policy="approval_required", authorization="allow", status="approval_required", end_stage="approval")
 
-# 다른 actor는 자신의 resource가 아니므로 approval record 자체를 받지 못한다.
-cross_user = execute_tool(
-    "read_file", {"path": "data/user-002/provate.txt"},
-    call_id="call-day5-cross-user", run_id=f"run-day5-cross-{uuid.uuid4().hex}",
-    actor="user-001", provenance=direct_user_provenance("interactive-user"),
-)
-assert cross_user["end_stage"] == "authorization"
-assert cross_user["meta"]["authorization_decision"] == "deny"
-
-# owner approval은 authenticated user-001에게만 허용된다.
-wrong_approver = approve_pending_request(
-    DEFAULT_RUNTIME.approvals, owner_approval_id, authenticated_approver="reviewer-001",
-)
-assert wrong_approver.changed is False
-approved = approve_pending_request(
-    DEFAULT_RUNTIME.approvals, owner_approval_id, authenticated_approver="user-001",
-)
+# Approval is a control-plane state change only; E06 retry is what dispatches.
+approved = approve_pending_request(e05.runtime.approvals, approval_id, authenticated_approver="user-001")
 assert approved.changed is True
+e06 = continue_experiment(e05, "e06")
+with patch.object(e06.runtime, "_dispatch", return_value="mocked-dispatch") as dispatcher:
+    executed = call(e06, owner_write, call_id="call-D5-E06", approval_id=approval_id)
+    assert executed["ok"] is True and dispatcher.call_count == 1
+print_and_assert_case("D5-E06", e06, policy="approval_required", authorization="allow", status="success", end_stage="runtime")
 
-with patch.object(DEFAULT_RUNTIME, "_dispatch", return_value="mocked-dispatch") as dispatch:
-    executed = execute_tool(
-        **DAY5_OWNER_FIXTURE,
-        call_id="call-day5-owner-execute",
-        run_id=f"run-day5-owner-execute-{uuid.uuid4().hex}",
-        approval_id=owner_approval_id,
-    )
-    assert executed["ok"] is True
-    assert dispatch.call_count == 1
-    replay = execute_tool(
-        **DAY5_OWNER_FIXTURE,
-        call_id="call-day5-owner-replay",
-        run_id=f"run-day5-owner-replay-{uuid.uuid4().hex}",
-        approval_id=owner_approval_id,
-    )
-    assert replay["ok"] is False
-    assert replay["status"] == "approval_required"
-    assert dispatch.call_count == 1
+# E07 uses the consumed ID: it must not reach Dispatcher again.
+e07 = continue_experiment(e05, "e07")
+with patch.object(e07.runtime, "_dispatch", return_value="must-not-run") as dispatcher:
+    replay = call(e07, owner_write, call_id="call-D5-E07", approval_id=approval_id)
+    assert replay["status"] == "approval_required" and dispatcher.call_count == 0
+print_and_assert_case("D5-E07", e07, policy="approval_required", authorization="allow", status="approval_required", end_stage="approval", unsafe=True)
 
-# shared의 member는 읽을 수 있지만 쓰기는 지정 reviewer-001의 승인이 필요하다.
-shared_pending = execute_tool(
-    "write_file", {"path": "data/shared/day5_note.txt", "content": "team note"},
-    call_id="call-day5-shared", run_id=f"run-day5-shared-{uuid.uuid4().hex}",
-    actor="user-003", provenance=direct_user_provenance("interactive-user"),
-)
-assert shared_pending["status"] == "approval_required"
-assert shared_pending["meta"]["required_approver"] == "reviewer-001"
+# E08: shared non-member cannot read and receives no approval ID.
+e08 = start_case("e08")
+e08_result = call(e08, {"tool_name": "read_file", "arguments": {"path": "data/shared/sharedbook.txt"},
+                        "actor": "user-002", "provenance": direct_user_provenance("interactive-user")},
+                  call_id="call-D5-E08")
+assert e08_result["end_stage"] == "authorization" and "approval_id" not in e08_result["meta"]
+print_and_assert_case("D5-E08", e08, policy="allow", authorization="deny", status="forbidden", end_stage="authorization", unsafe=True)
+
+# E09: content change changes ToolIntent.fingerprint(), so old approval cannot dispatch.
+e09 = start_case("e09")
+original = {"tool_name": "write_file", "arguments": {"path": "data/user-001/day5_fingerprint.txt", "content": "original"},
+            "actor": "user-001", "provenance": direct_user_provenance("interactive-user")}
+pending = call(e09, original, call_id="call-D5-E09-pending")
+approval_id = pending["meta"]["approval_id"]
+assert approve_pending_request(e09.runtime.approvals, approval_id, authenticated_approver="user-001").changed
+changed = {**original, "arguments": {"path": "data/user-001/day5_fingerprint.txt", "content": "changed"}}
+with patch.object(e09.runtime, "_dispatch", return_value="must-not-run") as dispatcher:
+    changed_result = call(e09, changed, call_id="call-D5-E09-changed", approval_id=approval_id)
+    assert changed_result["status"] == "approval_required" and dispatcher.call_count == 0
+print_and_assert_case("D5-E09", e09, policy="approval_required", authorization="allow", status="approval_required", end_stage="approval", unsafe=True)
+
+print("Day 5 E01-E09 passed")

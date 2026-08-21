@@ -1,0 +1,127 @@
+"""
+자원별 actor 접근 규칙.
+
+Day 5 fixture Authorization engine.
+
+This module is deliberately a local stand-in for a resource database/ACL
+service.  It accepts only a validated, canonical ``ToolIntent`` from Runtime;
+it never accepts actor identity from LLM tool arguments.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+import re
+
+from security.types import (
+    AuthorizationDecision,
+    AuthorizationOutcome,
+    ToolIntent,
+)
+
+# 현재는 매 toolcall 마다 ResourceMetadata(owner="user-0") 생성
+# 실제 시스템에서는 Resource DB에 ownership을 영구 저장한다. -> 파일의 폴더 변경마다 owner 가 변경될 위험X
+SHARED_MEMBERS = frozenset({"user-001", "user-003"})
+SHARED_APPROVER = "reviewer-001"
+# actor는 LLM argument가 아니라 인증/session/test harness에서만 들어온다.
+# Lab에서는 고정 목록 대신 유효한 actor ID 모양을 허용하여
+# data/{ACTOR_NAME}/** 규칙을 일반화한다.
+ACTOR_ID_PATTERN = re.compile(r"^[a-z][a-z0-9-]{2,63}$")
+
+
+@dataclass(frozen=True)
+class ResourceMetadata:
+    """Fixture resource registry result, not a production database model."""
+
+    kind: str
+    owner: str | None = None
+    members: frozenset[str] = frozenset()
+
+
+def resolve_resource(resource: str | None) -> ResourceMetadata:
+    """Resolve a canonical sandbox path to small Day 5 ownership metadata."""
+    normalized = (resource or "").replace("\\", "/").strip("/")
+
+    if normalized.startswith("data/shared/"):
+        return ResourceMetadata("shared", members=SHARED_MEMBERS)
+
+    # "data/" 아래의 항목들 나누기
+    if normalized.startswith("data/"):
+        parts = normalized.split("/")
+
+        # 최소한 data / actor-name / file-name 이 구조가 있어야 private 파일로 분류된다. 
+        # actor-name(==parts[1]), 즉 이름의 형식이 ACTOR_ID_PATTERN 에 정의된 형식에서 벗어나면 안 된다(특수문자 등등)
+        if len(parts) >= 3 and ACTOR_ID_PATTERN.fullmatch(parts[1]):
+            # 조건을 통과하면 해당 폴더(소유자)이름을 ResourceMetadata의 owner 이름으로 저장한다.
+            return ResourceMetadata("private", owner=parts[1])
+
+    if normalized in {"", ".", "sharedbook.txt"}:
+        return ResourceMetadata("public_read")
+
+    return ResourceMetadata("unregistered")
+
+
+class AuthorizationEngine:
+    """Authorize validated actor/resource/action combinations for the Lab.
+
+    Private owner writes and shared member writes are authorized *to request*
+    a write, but both return a required approver.  Policy then makes the
+    operation ``APPROVAL_REQUIRED``; Runtime creates no approval record unless
+    this method returns ALLOW.
+    """
+
+    def authorize(self, intent: ToolIntent) -> AuthorizationDecision:
+
+        if not ACTOR_ID_PATTERN.fullmatch(intent.actor):
+            return self._deny(intent, "UNKNOWN_ACTOR")
+
+        if intent.actor == SHARED_APPROVER:
+            return self._deny(intent, "REVIEWER_HAS_NO_TOOL_ACCESS")
+
+        metadata = resolve_resource(intent.resource)
+
+        if metadata.kind == "public_read":
+
+            if intent.action in {"read", "list", "pwd", "calculate"}:
+
+                return self._allow(intent, "PUBLIC_READ_RESOURCE")
+
+            return self._deny(intent, "PUBLIC_RESOURCE_WRITE_NOT_AUTHORIZED")
+
+
+        if metadata.kind == "private":
+
+            if metadata.owner != intent.actor:
+
+                return self._deny(intent, "ACTOR_NOT_RESOURCE_OWNER")
+
+
+            if intent.action == "write":
+                # Requirement 4: the resource owner must explicitly approve
+                # their own write request before it can be dispatched.
+                return self._allow(intent, "RESOURCE_OWNER_SELF_APPROVAL_REQUIRED", required_approver=intent.actor)
+            
+            return self._allow(intent, "RESOURCE_OWNER")
+
+
+        if metadata.kind == "shared":
+
+            if intent.actor not in metadata.members:
+                return self._deny(intent, "ACTOR_NOT_SHARED_MEMBER")
+
+            if intent.action == "write":
+                # A shared folder has no single owner.  The Lab therefore uses
+                # a designated reviewer; production would use a team ACL.
+                return self._allow(intent, "SHARED_WRITE_REQUIRES_REVIEWER", required_approver=SHARED_APPROVER)
+
+            return self._allow(intent, "SHARED_MEMBER")
+
+        return self._deny(intent, "RESOURCE_NOT_REGISTERED")
+
+    @staticmethod
+    def _allow(intent: ToolIntent, reason: str, *, required_approver: str | None = None) -> AuthorizationDecision:
+        return AuthorizationDecision(AuthorizationOutcome.ALLOW, reason, intent.actor, intent.action, intent.resource, required_approver)
+
+    @staticmethod
+    def _deny(intent: ToolIntent, reason: str) -> AuthorizationDecision:
+        return AuthorizationDecision(AuthorizationOutcome.DENY, reason, intent.actor, intent.action, intent.resource)

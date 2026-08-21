@@ -69,10 +69,14 @@ TOOLS: list[dict[str, Any]] = [
 ]
 
 
-def build_runtime(*, trace_path: Path = TRACE_PATH) -> Runtime:
-    """API key 없이 기본 로컬 testbed Runtime을 구성한다."""
+def build_runtime(*, trace_path: Path = TRACE_PATH, sandbox_root: Path | None = None) -> Runtime:
+    """API key 없이 로컬 testbed Runtime을 구성한다.
+
+    ``sandbox_root``는 fixture가 production sandbox를 건드리지 않도록 별도
+    복제 sandbox를 넘길 때만 사용한다.
+    """
     return Runtime(
-        sandbox_root=SANDBOX_ROOT,
+        sandbox_root=sandbox_root or SANDBOX_ROOT,
         policy=PolicyEngine(),
         approvals=ApprovalStore(),
         trace_logger=TraceLogger(trace_path),

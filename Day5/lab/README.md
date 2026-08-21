@@ -297,3 +297,14 @@ trusted reviewer: approve(apr_...)
 ```
 
 `approve()`와 `execute()`는 같은 동작이 아니다. 승인자는 상태만 바꾸고, Runtime은 재제출된 동일 Intent를 다시 검증한 뒤에만 실행한다. 운영 환경에서는 `consume`을 DB transaction 또는 compare-and-swap으로 원자 처리해야 같은 approval ID의 동시 재시도가 두 번 실행되는 문제를 막을 수 있다.
+
+## 복원된 실험 재현성 지원
+
+`src/experiment_support.py`는 test harness가 호출하는 지원 모듈이다. 매
+fixture 실행 전에 sandbox를 임시 폴더에 복제하고 파일별 SHA-256 manifest의
+`seed_digest`를 남긴다. manifest는 `path`, `size`, content SHA-256으로 구성된다.
+`seed_snapshot`은 seed digest를, policy/authz decision은 `decision_digest`를,
+Runtime result는 `result_digest`를 남긴다. `test_runtime.py/print_and_assert_case`
+가 각 E의 기대·실제 decision/status/end_stage diff를 출력하고 차이가 있으면 즉시
+실패시킨다. 기본 trace는 `src/traces/trace_D5_EXP.jsonl`이며 `DAY5_TRACE_PATH`로
+분리할 수 있다.

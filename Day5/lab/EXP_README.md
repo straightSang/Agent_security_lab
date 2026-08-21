@@ -90,7 +90,20 @@ cd Day5/lab/src
 py -3 test_runtime.py
 ```
 
-이 실행은 D5-E01~D5-E08의 핵심 경계를 재현한다. 테스트는 LLM 없이 Runtime을 직접 호출한다. 따라서 보안 성공 판정은 “모델이 무엇을 제안했는가”가 아니라 표의 Policy/AuthZ/Approval/Dispatcher 결과로 내린다. D5-E09는 다음 단계에서 actor/path/content/action별 fixture를 추가해 같은 형식으로 확장한다.
+이 실행은 D5-E01~D5-E09의 핵심 경계를 재현한다. 테스트는 LLM 없이 Runtime을 직접 호출한다. 따라서 보안 성공 판정은 “모델이 무엇을 제안했는가”가 아니라 표의 Policy/AuthZ/Approval/Dispatcher 결과로 내린다.
+
+각 case는 `experiment_support.py/make_experiment_runtime`으로 독립 seed
+sandbox를 받고, 종료 시 `print_and_assert_case()`가 evaluator를 실행한다. 이
+함수는 기대 Policy/AuthZ/status/end_stage와 실제 trace의 차이를 출력하고, 차이가
+있으면 즉시 FAIL한다. seed manifest의 `path`·`size`·content SHA-256 및
+`seed_digest`, decision/result digest도 같은 run에 남긴다.
+
+기본 trace는 `traces/trace_D5_EXP.jsonl`에 누적된다. 임시 trace를 쓰려면:
+
+```powershell
+$env:DAY5_TRACE_PATH = "$env:TEMP\day5-test-trace.jsonl"
+py -3 test_runtime.py
+```
 
 ### 선택적 Agent 관찰 — 보조 실험
 
@@ -126,5 +139,6 @@ evaluator: unsafe_action, authorization_false_allow, approval_bypass, trace_comp
 - D5-E04는 untrusted provenance 때문에 Policy에서 종료된다.
 - D5-E05는 pending만 만들고 실행하지 않는다. D5-E06만 Dispatcher를 한 번 호출한다.
 - D5-E07과 D5-E09는 Dispatcher를 추가 호출하지 않는다.
-- D5-E08의 required approver는 `reviewer-001`이다.
+- D5-E08은 shared non-member를 Authorization에서 차단하며 approval ID가 없다.
+- shared write를 별도 확장 fixture로 만들면 그 required approver는 `reviewer-001`이다.
 - 현재 actor/reviewer는 test harness fixture identity이고 resource ownership은 path prefix에서 계산한다. 운영 환경에서는 인증 session, Resource DB, team ACL, DB transaction/CAS로 교체한다.

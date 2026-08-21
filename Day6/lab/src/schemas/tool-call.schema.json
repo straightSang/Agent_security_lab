@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ToolIntent contract",
+  "type": "object",
+  "required": ["run_id", "call_id", "actor", "tool_name", "arguments", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "run_id": {"type": "string", "minLength": 1},
+    "call_id": {"type": "string", "minLength": 1},
+    "actor": {"type": "string", "minLength": 1},
+    "tool_name": {"enum": ["calculator", "read_file", "get_time", "write_file", "list_files", "run_command"]},
+    "arguments": {"type": "object"},
+    "provenance": {
+      "type": "object",
+      "required": ["kind", "source"],
+      "properties": {
+        "kind": {"enum": ["user_task", "repository_content", "tool_observation", "external_content", "system"]},
+        "source": {"type": "string"}
+      }
+    }
+  }
+}

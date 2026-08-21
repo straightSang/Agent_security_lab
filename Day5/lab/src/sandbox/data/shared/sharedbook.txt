@@ -1,0 +1,1 @@
+Day 5 shared fixture: readable by user-001 and user-003.

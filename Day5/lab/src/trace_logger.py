@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from hashlib import sha256
 import uuid
 import warnings
 from datetime import datetime, timezone
@@ -36,6 +37,9 @@ TRACE_COMMON_FIELDS = (
     "end_stage",
     "ok",
     "error_code",
+    "seed_digest",
+    "decision_digest",
+    "result_digest",
 )
 
 
@@ -45,8 +49,14 @@ class TraceLogger:
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def emit(self, event: str, run_id: str, *, call_id: str | None = None, **fields: Any) -> dict[str, Any]:
-
-        
+        # 각 핵심 단계의 payload 자체를 digest로 남긴다. event_id/timestamp는
+        # digest 재료에서 제외하여 같은 입력·판정의 비교가 가능하게 한다.
+        if event == "seed_snapshot":
+            fields.setdefault("seed_digest", self.digest(fields.get("seed_manifest", [])))
+        elif event in {"policy_decision", "authorization_decision"}:
+            fields.setdefault("decision_digest", self.digest(fields))
+        elif event == "runtime_result":
+            fields.setdefault("result_digest", self.digest(fields))
         record = {
             "event_id": f"evt_{uuid.uuid4().hex}",
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -84,6 +94,18 @@ class TraceLogger:
         security = dict(result.security)
         approval = security.pop("approval", "not_required")
         self.emit("runtime_result", intent.run_id, call_id=intent.call_id, agent_step=intent.agent_step, actor=intent.actor, tool_name=intent.tool_name, provenance=intent.provenance.to_dict(), approval=approval, **security, ok=result.ok, runtime_status=result.status, end_stage=result.end_stage, error_code=result.error_code)
+
+    @staticmethod
+    def digest(value: Any) -> str:
+        """Stable SHA-256 digest for a seed manifest or selected trace evidence."""
+        payload = json.dumps(value, ensure_ascii=True, sort_keys=True, default=str, separators=(",", ":"))
+        return sha256(payload.encode("utf-8")).hexdigest()
+
+    def record_experiment_evidence(self, run_id: str, *, seed_digest: str,
+                                   decision_digest: str, result_digest: str) -> None:
+        """Append the three reproducibility digests required for every Lab run."""
+        self.emit("experiment_evidence", run_id, seed_digest=seed_digest,
+                  decision_digest=decision_digest, result_digest=result_digest)
 
     def iter_events(self, *, run_id: str | None = None, strict: bool = False) -> Iterator[dict[str, Any]]:
         """trace 이벤트를 순회한다.

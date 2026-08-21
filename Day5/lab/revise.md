@@ -17,6 +17,9 @@
 | 11 | `runtime.py/Runtime._dispatch` | 허용된 intent → local tool result | 허용 목록 내부 함수만 실행 |
 | 12 | `trace_logger.py/TraceLogger.record_*` | 각 결론 → JSONL | policy/authz/approval/result 감사 |
 | 13 | `security/evaluator.py/evaluate_run` | trace → metrics | false allow/block, approval bypass 확인 |
+| 14 | `experiment_support.py/make_experiment_runtime` | seed sandbox → isolated Runtime | fixture 간 filesystem 상태 분리 |
+| 15 | `test_runtime.py/print_and_assert_case` | expected ↔ actual trace | diff 출력 및 fixture FAIL 판정 |
+| 16 | `experiment_support.py/record_run_evidence` | trace → 3 digest | seed·decision·result 증거 고정 |
 
 ## 2. 추가·수정된 파일
 
@@ -33,7 +36,8 @@
 | `src/security/evaluator.py` | authorization false allow/block 및 approval bypass 지표 추가 |
 | `src/Agent.py` | Runtime composition root에서 AuthorizationEngine을 명시적으로 주입 |
 | `src/Agent_v0.4.py` | 새 승인 UX Agent. `Agent_v0.3.2.py`는 변경하지 않음 |
-| `src/test_runtime.py` | Day 5 owner, cross-user, wrong approver, consumed replay, shared reviewer fixture 및 dispatcher mock 검증 추가 |
+| `src/test_runtime.py` | E01~E09별 seed/evaluator/diff 필수 절차, `DAY5_TRACE_PATH` 및 dispatcher mock 검증 추가 |
+| `src/experiment_support.py` | `path`·`size`·content SHA-256 seed manifest, clone 및 seed/decision/result digest 기록 추가 |
 | `README.md` | 실제 Day 5 actor/shared 규칙과 호출 순서 반영 |
 | `src/policy.md` | Day 5 정책, 인가, Resource DB 확장 기준 문서화 |
 
@@ -62,6 +66,16 @@
 - consumed approval replay: dispatcher call count 추가 없음
 - shared write: user-003은 pending, `reviewer-001`이 required approver
 
-테스트는 checked-in trace를 더럽히지 않도록 temporary trace path를 사용한다. 실제
-파일 쓰기 대신 dispatcher mock을 사용한 곳은 **실제 filesystem 권한이 아니라 Runtime
-admission 횟수**를 분리해 검증하기 위해서다.
+기본 trace는 `src/traces/trace_D5_EXP.jsonl`에 누적한다. `DAY5_TRACE_PATH`를
+지정하면 CI나 재검증용 임시 trace로 분리할 수 있다. 실제 파일 쓰기 대신 dispatcher
+mock을 사용한 곳은 **실제 filesystem 권한이 아니라 Runtime admission 횟수**를 분리해
+검증하기 위해서다.
+
+모든 fixture는 실행 전 seed digest, 실행 후 decision/result digest를 남긴다. 이 세
+값은 서로 다른 실행 결과를 비교할 때 입력 상태·판정·부작용 근거를 분리하는 최소
+감사 기록이다.
+
+`seed_snapshot`은 `seed_digest`, `policy_decision`·`authorization_decision`은
+`decision_digest`, `runtime_result`는 `result_digest`를 각각 갖는다. 모든 E case는
+`print_and_assert_case()`로 expected-vs-actual diff를 출력하고 차이가 있으면 즉시
+실패한다.

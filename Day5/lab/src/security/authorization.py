@@ -63,6 +63,11 @@ class AuthorizationEngine:
         if intent.actor == SHARED_APPROVER:
             return self._deny(intent, "REVIEWER_HAS_NO_TOOL_ACCESS")
 
+        # These capabilities have no sandbox resource owner.  Their global
+        # capability allow-list was already evaluated by PolicyEngine.
+        if intent.resource is None or intent.resource == "system:clock":
+            return self._allow(intent, "NON_RESOURCE_CAPABILITY")
+
         metadata = resolve_resource(intent.resource)
         if metadata.kind == "public_read":
             if intent.action in {"read", "list", "pwd", "calculate"}:
