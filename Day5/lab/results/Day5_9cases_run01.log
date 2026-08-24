@@ -1,0 +1,172 @@
+{
+  "case": "D5-E01",
+  "run_id": "run-e01-7da4204071f84b81a21c9771548450dc",
+  "expected": {
+    "policy": "allow",
+    "authorization": "allow",
+    "status": "success",
+    "end_stage": "runtime"
+  },
+  "actual": {
+    "policy": "allow",
+    "authorization": "allow",
+    "status": "success",
+    "end_stage": "runtime"
+  },
+  "trace_completeness": true,
+  "differences": []
+}
+{"case": "D5-E01", "seed_digest": "46386d3f83138525f1b8e82020e63da4213ae7cc5103cab810c2c71e6f3570d2", "decision_digest": "35550dc38c9fa83e1c341860510b91c4316ad01fefc0b58a5f2ded3781c4781b", "result_digest": "a60beff07610bd0780509c848aadf950bf16cece2fb3fb97751187187429e9bd"}
+{
+  "case": "D5-E02",
+  "run_id": "run-e02-1fe43178fd2444479ec26942c0996a93",
+  "expected": {
+    "policy": "allow",
+    "authorization": "allow",
+    "status": "success",
+    "end_stage": "runtime"
+  },
+  "actual": {
+    "policy": "allow",
+    "authorization": "allow",
+    "status": "success",
+    "end_stage": "runtime"
+  },
+  "trace_completeness": true,
+  "differences": []
+}
+{"case": "D5-E02", "seed_digest": "46386d3f83138525f1b8e82020e63da4213ae7cc5103cab810c2c71e6f3570d2", "decision_digest": "9aa71fd7070b8c5c458bc24f5ecf80ba19d5ec0165284b8c84a4c892350bccf5", "result_digest": "1b2a3e944e2fed6fb745253d602f4abd187bbb9b172147e614cdf2ae5eb4c352"}
+{
+  "case": "D5-E03",
+  "run_id": "run-e03-7a4eb76fdd174cdb87482a7208f4d83b",
+  "expected": {
+    "policy": "allow",
+    "authorization": "deny",
+    "status": "forbidden",
+    "end_stage": "authorization"
+  },
+  "actual": {
+    "policy": "allow",
+    "authorization": "deny",
+    "status": "forbidden",
+    "end_stage": "authorization"
+  },
+  "trace_completeness": true,
+  "differences": []
+}
+{"case": "D5-E03", "seed_digest": "46386d3f83138525f1b8e82020e63da4213ae7cc5103cab810c2c71e6f3570d2", "decision_digest": "b49808865860668686d24ccf0052fb5132fe9169cfce97d48bdf266d31d9e4c4", "result_digest": "6e95b4fb4b79f2fbf00a72f38a7bccd23763860f749c8fc4cf14857797066f54"}
+{
+  "case": "D5-E04",
+  "run_id": "run-e04-0d4c7071d8024eb4a5ce4fc7ea7210bc",
+  "expected": {
+    "policy": "deny",
+    "authorization": null,
+    "status": "denied",
+    "end_stage": "policy"
+  },
+  "actual": {
+    "policy": "deny",
+    "authorization": null,
+    "status": "denied",
+    "end_stage": "policy"
+  },
+  "trace_completeness": true,
+  "differences": []
+}
+{"case": "D5-E04", "seed_digest": "46386d3f83138525f1b8e82020e63da4213ae7cc5103cab810c2c71e6f3570d2", "decision_digest": "b557848d6a531a85d23ff2d8fda91d134426b1f9a71c09dc2554ab81539f94a1", "result_digest": "79b3efbdf273da83c93442a60bb4d3112ec05aa99e39364382726bc30e1be62e"}
+{
+  "case": "D5-E05",
+  "run_id": "run-e05-d2503e4adf5241929e1c37d7edf1531b",
+  "expected": {
+    "policy": "approval_required",
+    "authorization": "allow",
+    "status": "approval_required",
+    "end_stage": "approval"
+  },
+  "actual": {
+    "policy": "approval_required",
+    "authorization": "allow",
+    "status": "approval_required",
+    "end_stage": "approval"
+  },
+  "trace_completeness": true,
+  "differences": []
+}
+{"case": "D5-E05", "seed_digest": "46386d3f83138525f1b8e82020e63da4213ae7cc5103cab810c2c71e6f3570d2", "decision_digest": "3a81c2a069a766b17e94ef7f6211cdba682e04c36ac7603e43112875fe3fbda8", "result_digest": "ca5241a07d0779fd38b8660282da67a6d567f64fd6100368e39e793019faf7f2"}
+{
+  "case": "D5-E06",
+  "run_id": "run-e06-daab38a1241945cea43f6ddbd77205d2",
+  "expected": {
+    "policy": "approval_required",
+    "authorization": "allow",
+    "status": "success",
+    "end_stage": "runtime"
+  },
+  "actual": {
+    "policy": "approval_required",
+    "authorization": "allow",
+    "status": "success",
+    "end_stage": "runtime"
+  },
+  "trace_completeness": true,
+  "differences": []
+}
+{"case": "D5-E06", "seed_digest": "46386d3f83138525f1b8e82020e63da4213ae7cc5103cab810c2c71e6f3570d2", "decision_digest": "ac5a77cd7a0fdd742d85e4beb0764b01d20f2f839c122debe0704fadc3271a79", "result_digest": "ff3cf6656a01643fe8662bc5c1b01c473993bcfe476bc77f7be7d8d71a1599b9"}
+{
+  "case": "D5-E07",
+  "run_id": "run-e07-9cff8dc020164128a2a079509dbc7b00",
+  "expected": {
+    "policy": "approval_required",
+    "authorization": "allow",
+    "status": "approval_required",
+    "end_stage": "approval"
+  },
+  "actual": {
+    "policy": "approval_required",
+    "authorization": "allow",
+    "status": "approval_required",
+    "end_stage": "approval"
+  },
+  "trace_completeness": true,
+  "differences": []
+}
+{"case": "D5-E07", "seed_digest": "46386d3f83138525f1b8e82020e63da4213ae7cc5103cab810c2c71e6f3570d2", "decision_digest": "fc4939020f74843ef1262fe09c7c984076ce23adf59565f3922fc1d264d0271c", "result_digest": "13b38718c60bab566f6a222f1cf368f5cd1daa8acc68821782519990c9d30b3b"}
+{
+  "case": "D5-E08",
+  "run_id": "run-e08-0accfac2bb3447e8b363add4b739cea7",
+  "expected": {
+    "policy": "allow",
+    "authorization": "deny",
+    "status": "forbidden",
+    "end_stage": "authorization"
+  },
+  "actual": {
+    "policy": "allow",
+    "authorization": "deny",
+    "status": "forbidden",
+    "end_stage": "authorization"
+  },
+  "trace_completeness": true,
+  "differences": []
+}
+{"case": "D5-E08", "seed_digest": "46386d3f83138525f1b8e82020e63da4213ae7cc5103cab810c2c71e6f3570d2", "decision_digest": "ab802d3e85db832664262ed4d38f11d4a6c8dc5b30515e3938596ee6a8029820", "result_digest": "49e7876ce4712c30bac77c08f48bb3f2266977a2fb53cb71eb9f5d86cac9dfe9"}
+{
+  "case": "D5-E09",
+  "run_id": "run-e09-119648027b2c4d79a6f03885c26f497d",
+  "expected": {
+    "policy": "approval_required",
+    "authorization": "allow",
+    "status": "approval_required",
+    "end_stage": "approval"
+  },
+  "actual": {
+    "policy": "approval_required",
+    "authorization": "allow",
+    "status": "approval_required",
+    "end_stage": "approval"
+  },
+  "trace_completeness": true,
+  "differences": []
+}
+{"case": "D5-E09", "seed_digest": "46386d3f83138525f1b8e82020e63da4213ae7cc5103cab810c2c71e6f3570d2", "decision_digest": "1e2e23a09bf4247b9eb1dee6cfe106f62b7483647c2fa88ead8e3bf1692fe49d", "result_digest": "154488000cf784ce3b5158e120eedd1edc36df05a6c3bbc2f3c6b2ca5311ab5d"}
+Day 5 E01-E09 passed
