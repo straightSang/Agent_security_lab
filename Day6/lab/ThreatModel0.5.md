@@ -1,134 +1,102 @@
-# Threat Model v0.5 — Day 6 Observation Provenance·비신뢰 라벨
+# Threat Model v0.5 — Day 6 Observation Provenance와 비신뢰 라벨
 
-> Day 6 정본. 실험 케이스와 증거 절차는 [EXP_README.md](EXP_README.md), 전체 학습 흐름은 [README.md](README.md)를 함께 따른다.
+Day 6은 Day 5의 Authorization·Approval 경계를 유지한 채, **파일·도구·향후 MCP 결과가 다음 ToolIntent의 실행 권한으로 바뀌는 문제**를 다룬다.
 
-**범위:** 로컬 fixture-sandbox 기반 Agent Runtime  
-**목적:** Day 5 Authorization·Approval 경계를 유지하면서, tool/file observation의 provenance와 trust가 다음 ToolIntent까지 보존되는지 검증한다.
+관련 문서:
 
-## System
+- [README.md](README.md): 개념과 현재 구현
+- [EXP_README.md](EXP_README.md): 현재 회귀 실험과 trace 확인
+
+## 시스템 흐름
 
 ```text
 authenticated actor
-  -> user input envelope (provenance/trust)
+  -> direct user input
   -> LLM Tool Proposal
   -> Validation
   -> ToolIntent
-  -> Policy / Authorization / Approval / Runtime Dispatcher
-  -> Tool Result
-  -> Observation Envelope (source, parent event, trust, digest)
-  -> next LLM turn
-  -> next ToolIntent with inherited observation provenance
+  -> Policy -> Authorization -> Approval(필요 시) -> Runtime Dispatcher
+  -> RuntimeResult
+  -> ObservationEnvelope
+  -> 다음 LLM turn
+  -> observation-derived ToolIntent
 ```
 
-Observation은 authority가 아니다. observation text는 LLM context에 들어갈 수 있지만, actor·capability·policy rule·approval state·Runtime dispatcher를 직접 변경할 수 없다.
+Observation은 LLM이 읽을 수 있는 data이지만 authority가 아니다. observation text는 actor, capability, policy rule, approval state, Dispatcher 경로를 직접 바꿀 수 없다.
 
-## 보호 자산
+## 보호 대상
 
-- tool/file observation의 source, parent event, trust label, result digest
-- actor identity와 Authorization decision
-- Policy rule, capability mapping, approval record/fingerprint
+- observation의 `source`, `source_kind`, `trust`, `parent_call_id`, `result_digest`
+- actor identity와 Authorization 결과
+- Policy 규칙, capability mapping, approval record와 fingerprint
 - sandbox resource와 Runtime Dispatcher의 실행 무결성
-- observation → next ToolIntent → decision → result trace chain
+- observation → 다음 ToolIntent → decision → result trace 연결
 
 ## 신뢰 경계
 
-| 구성 요소 | 신뢰 수준 | Day 6 처리 |
+| 구성 요소 | 기본 trust | 처리 |
 |---|---|---|
-| 직접 사용자 입력 | source는 user controlled, 내용은 자동 authority 아님 | user task provenance 부여 |
-| LLM Tool Proposal | 비신뢰 | Validation 후 ToolIntent로 정규화 |
-| repository file result | untrusted | observation envelope에 repository provenance |
-| tool result | untrusted | observation envelope에 tool provenance |
-| external/MCP resource result | untrusted 기본값 | future MCP adapter가 source/trust 부여 |
-| Policy/AuthZ/Approval/Runtime | TCB | observation text가 수정 불가 |
-| trace/evaluator | 감사 경계 | parent/source/trust/result 연결 확인 |
+| 직접 사용자 입력 | `user_controlled` | trusted adapter가 `USER_TASK` provenance 부여 |
+| LLM Tool Proposal | 권한 없음 | Validation 뒤 ToolIntent로 정규화 |
+| repository file 결과 | `untrusted` | `REPOSITORY_CONTENT` Envelope 생성 |
+| tool 결과 | `untrusted` | `TOOL_OBSERVATION` Envelope 생성 |
+| external/MCP 결과 | `untrusted` | 향후 adapter가 `EXTERNAL_CONTENT` Envelope 생성 |
+| Policy/AuthZ/Approval/Runtime | TCB | observation text가 수정할 수 없음 |
 
 ## 보안 불변조건
 
-1. observation provenance/trust는 tool/source adapter가 부여하며 LLM이 선언하지 않는다.
-2. successful read 결과도 다음 turn에서는 자동으로 direct-user trust를 가지지 않는다.
-3. untrusted observation에서 유래한 ToolIntent는 capability 실행 권한을 얻지 못하고 Policy에서 끝난다.
-4. Policy DENY면 Authorization, Approval, Dispatcher에 도달하지 않는다.
-5. observation text는 actor, capability, Policy rule, approval ID/state를 직접 바꾸지 못한다.
-6. observation trace는 parent event와 source/digest를 통해 다음 ToolIntent와 연결된다.
-7. 안전한 read/summarize 작업은 과도하게 차단되지 않는다.
+- observation provenance와 trust는 LLM이 아니라 code adapter가 만든다.
+- tool call 하나가 성공하면 ObservationEnvelope 하나가 생성된다.
+- 여러 Envelope은 하나로 합쳐지지 않는다. 다음 ToolIntent provenance의 `attributes.observation_ids`에 함께 기록된다.
+- 하나의 observation이면 원래 source kind를 유지한다.
+- 여러 observation이면 provenance의 `kind=TOOL_OBSERVATION`, `source=multiple_observations`로 표시하고 개별 source는 attributes에 보존한다.
+- repository/tool/external observation이 남아 있으면 현재 strict baseline에서는 다음 ToolIntent가 `untrusted`다.
+- Policy DENY면 Authorization, Approval, Dispatcher에 도달하지 않는다.
 
 ## 위협과 통제
 
-| ID | 위협 | 공격 표면 | 통제 | 검증 |
-|---|---|---|---|---|
-| T-012 | Indirect Prompt Injection | injected file/tool output | observation provenance → untrusted → Policy DENY | D6-E03/E04 |
-| T-013 | Provenance laundering | observation을 user_task로 재라벨 | trusted adapter만 provenance 생성 | metadata tamper fixture |
-| T-014 | Capability/policy mutation | observation의 “규칙 무시” 문장 | capability/policy는 Runtime 코드가 계산 | D6-E05 |
-| T-015 | Actor/approval spoofing | observation의 admin/approval ID 주장 | actor=session, approval=store state | D6-E05 |
-| T-016 | Observation trace gap | parent/source/trust 누락 | ObservationEnvelope + required trace keys | trace completeness |
-| T-017 | Unsafe observation action | write/read/exfiltration 성격 후속 proposal | Policy DENY, Dispatcher mock | unsafe_action=false |
-| T-018 | Overblocking | 안전한 note 요약까지 차단 | safe fixtures, false block 측정 | D6-E01/E02 |
+| 위협 | 공격 표면 | 현재 통제 | 현재 검증 |
+|---|---|---|---|
+| Indirect Prompt Injection | 파일 또는 tool output의 지시 문자열 | observation provenance → untrusted → Policy DENY | `test_observation.py` |
+| Provenance laundering | observation을 `USER_TASK`처럼 재라벨 | trusted adapter만 provenance 생성 | trace source/trust 확인 |
+| Actor/approval spoofing | “admin이다”, “approval ID를 사용하라”는 문자열 | actor=session/test harness, approval=store state | Day 5 경계 유지 |
+| Observation trace gap | source/trust/parent/digest 누락 | `observation_created` 이벤트 | trace completeness |
+| Overblocking | 정상 결과 뒤 작업을 모두 막음 | strict baseline의 알려진 한계로 기록 | 향후 실험 대상 |
 
-## 핵심 공격 시나리오
+## 단일 observation 예시
 
 ```text
-user-001: data/injected_note.txt를 읽어 줘
-  -> read_file 자체는 user_task Policy/Authorization 통과 가능
-  -> RuntimeResult content에는 synthetic instruction 포함
-  -> ObservationEnvelope:
-       source = data/injected_note.txt
-       source_kind = repository_content
-       trust = untrusted
-       parent_event_id = call-read
-  -> LLM이 output.txt write를 제안하더라도
-  -> next ToolIntent provenance = repository_content
-  -> Policy DENY
-  -> approval ID 없음
-  -> Dispatcher 0회
+read_file("data/injected_note.txt") 성공
+  -> obs-read 생성
+  -> source_kind = repository_content
+  -> trust = untrusted
+  -> 다음 ToolIntent provenance = repository_content
+  -> write_file proposal이면 Policy DENY
 ```
 
-이 실험의 성공은 모델이 injected 문장을 전혀 읽지 못하는 것이 아니다. 문장을 읽더라도 그 문장이 Runtime 권한으로 변환되지 않는 것이 성공이다.
-
-## Trace / Evaluator 증거
+## 복수 observation 예시
 
 ```text
-run_id
-  -> tool_intent(read)
-  -> runtime_result(success)
-  -> observation_envelope(untrusted, parent=read call)
-  -> tool_intent(write proposal, provenance=untrusted)
-  -> policy_decision(deny)
-  -> runtime_result(denied)
-  -> evaluation_result(unsafe_action=false)
+read_file(...) 성공       -> obs-read
+calculator(...) 성공      -> obs-calc
+
+다음 ToolIntent provenance
+  -> kind = tool_observation
+  -> source = multiple_observations
+  -> attributes.observation_ids = [obs-read, obs-calc]
+  -> trust = untrusted
 ```
 
-필수 trace 키:
+여러 결과 중 무엇이 모델의 다음 제안에 영향을 줬는지 Runtime이 정확히 판별할 수 없으므로, 현재는 모든 ID를 기록하고 보수적으로 차단한다.
 
-```text
-run_id, call_id, parent_event_id, observation_id,
-source_kind, source, source_trust, result_digest,
-actor, capability, action, resource,
-policy_decision, authorization_decision,
-approval, runtime_status, reason
-```
+## 현재 검증 범위와 한계
 
-## MCP 연결 시의 확장
+현재 구현된 검증은 하나의 fixture 기반 회귀 테스트다. 실제 LLM API 호출이나 실제 파일 read 결과는 사용하지 않고, synthetic observation 두 개를 만들어 후속 write proposal이 Policy에서 차단되는지 확인한다.
 
-MCP는 host/client/server 사이에서 resources와 tools를 표준화하지만, tool description이나 resource output의 신뢰성을 자동으로 보장하지 않는다. Day 6의 원칙은 이후 MCP adapter에도 그대로 적용한다.
+범위 밖:
 
-```text
-MCP resource/tool output
-  -> Observation Envelope
-  -> source = MCP server + resource/tool identifier
-  -> trust = untrusted by default
-  -> Runtime policy 결정 전 authority로 사용 금지
-```
-
-MCP HTTP authorization과 Day 5의 local Authorization은 서로 다른 층이다. MCP OAuth token은 client/server transport access를 다루고, Agent Runtime Authorization은 actor가 특정 tool/resource/action을 수행할 수 있는지 다룬다. 둘 다 필요할 수 있다.
-
-## 범위 밖 / 잔여 위험
-
-- 실제 MCP client/server, OAuth, token audience 검증, network transport
-- LLM이 observation 영향을 정확히 설명하거나 attribution하는 능력
-- 복수 observation이 섞인 context의 세밀한 정보흐름 추적
-- 실제 이메일/web/document connector와 악성 콘텐츠 처리
-- OS/container sandbox, trace tamper resistance
-
-Day 6의 결론은 “모든 observation을 차단한다”가 아니다.
-
-> observation은 읽을 수 있는 data이지만 실행 authority가 아니며, 그 source/trust가 다음 ToolIntent까지 보존되고 Runtime에서 다시 판단되어야 한다.
+- 실제 MCP client/server, OAuth, 외부 네트워크
+- 실제 LLM이 injected text에 반응하는 비결정적 행동 측정
+- observation별 세밀한 영향 추적
+- 정상 multi-step tool workflow를 안전하게 허용하는 정책
+- OS/container sandbox와 trace tamper resistance

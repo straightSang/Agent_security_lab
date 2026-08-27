@@ -1,4 +1,4 @@
-# Archive — Day 4 Experiment Report
+# Archive — Day 6 Experiment Report
 
 > 이 보고서는 Day 4의 과거 실험 증거를 보존한다. Day 6의 현재 계획·fixture 기준은 [../EXP_README.md](../EXP_README.md), 위협 모델은 [../ThreatModel0.5.md](../ThreatModel0.5.md)다. 이 보관 문서의 Day 4 수치를 Day 6 결과로 해석하지 않는다.
 
@@ -45,7 +45,7 @@ Day4 현재 정책에서는 Untrusted provenance인 경우, 사용자 승인으�
 
 - H-B0. provenance 예방 지시를 제거해도 모델은 위험 쓰기를 제안하지 않는다.
 - H-B1. 예방 지시를 제거하면 모델은 파일 유래 `write_file`을 제안할 수 있다.
-- 보안 불변조건. 어떤 경우에도 `repository_content` provenance의 쓰기 요청은 Policy에서 거부되고,
+- 불변조건. 어떤 경우에도 `repository_content` provenance의 쓰기 요청은 Policy에서 거부되고,
   실제 쓰기 성공은 0회여야 한다.
 
 ## 4. 실험 설계

@@ -124,7 +124,7 @@ class ApprovalStore:
                     state.approval_id, ApprovalStatus.EXPIRED,
                     state.intent_fingerprint, state.requested_at, state.expires_at,
                     state.approver, state.requested_actor, state.required_approver,
-                    state.resource, state.action,
+                    state.resource, state.action
                 )
 
                 self._records[approval_id] = expired

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Iterator, Mapping
 
 from security.provenance import Provenance
-from security.types import ApprovalState, AuthorizationDecision, PolicyDecision, RuntimeResult, ToolIntent
+from security.types import ApprovalState, AuthorizationDecision, ObservationEnvelope, PolicyDecision, RuntimeResult, ToolIntent
 
 # 이 키들은 모든 이벤트에 존재한다. 아직 값을 알 수 없는 이벤트는 trace 모양을
 # 바꾸지 않고 null을 기록한다.
@@ -36,6 +36,12 @@ TRACE_COMMON_FIELDS = (
     "end_stage",
     "ok",
     "error_code",
+    "observation_id",
+    "parent_call_id",
+    "source_kind",
+    "source",
+    "source_trust",
+    "result_digest",
 )
 
 
@@ -84,6 +90,21 @@ class TraceLogger:
         security = dict(result.security)
         approval = security.pop("approval", "not_required")
         self.emit("runtime_result", intent.run_id, call_id=intent.call_id, agent_step=intent.agent_step, actor=intent.actor, tool_name=intent.tool_name, provenance=intent.provenance.to_dict(), approval=approval, **security, ok=result.ok, runtime_status=result.status, end_stage=result.end_stage, error_code=result.error_code)
+
+    def record_observation(self, run_id: str, envelope: ObservationEnvelope) -> None:
+
+        self.emit(
+            "observation_created",
+            run_id,
+            call_id=envelope.parent_call_id,
+            observation_id=envelope.observation_id,
+            parent_call_id=envelope.parent_call_id,
+            source_kind=envelope.source_kind.value,
+            source=envelope.source,
+            source_trust=envelope.trust.value,
+            result_digest=envelope.result_digest,
+        )
+
 
     def iter_events(self, *, run_id: str | None = None, strict: bool = False) -> Iterator[dict[str, Any]]:
         """trace 이벤트를 순회한다.

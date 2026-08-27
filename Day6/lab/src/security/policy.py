@@ -21,7 +21,7 @@ class PolicyEngine:
     def evaluate(self, intent: ToolIntent) -> PolicyDecision:
 
         # provenance : trustlabel 부여
-        trust = label_trust(intent.provenance)
+        trust = label_trust(intent.provenance.kind)
 
         resource_parts = set((intent.resource or "").lower().replace("\\", "/").split("/"))
 

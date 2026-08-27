@@ -146,3 +146,16 @@ class RuntimeResult:
     def to_dict(self) -> dict[str, Any]:
         meta = {"tool_name": self.tool_name, "call_id": self.call_id, **self.security}
         return {"ok": self.ok, "status": self.status, "end_stage": self.end_stage, "data": self.data, "error": None if self.ok else {"code": self.error_code, "message": self.error_message}, "meta": meta}
+
+
+@dataclass(frozen=True)
+class ObservationEnvelope:
+    """도구 출력의 내용과, 그 출력이 생긴 신뢰 경계를 함께 보존한다."""
+
+    observation_id: str
+    parent_call_id: str | None
+    source_kind: ProvenanceKind
+    source: str
+    trust: TrustLabel
+    result_digest: str
+    content: str  # LLM에는 data로만 전달한다.

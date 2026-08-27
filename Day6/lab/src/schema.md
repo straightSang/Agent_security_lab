@@ -1,205 +1,193 @@
-# Runtime 계약 — Day 6 Observation Provenance 확장 계획
+# Runtime 데이터 형식 — Day 6 Observation Provenance
 
-이 문서는 Agent, Runtime, trace 이벤트, 도구 호출, 승인 상태의 사람이 읽는 계약이다. 코드와 다르면 Python 코드가 최종 기준이다.
+이 문서는 Day 6의 Agent, Runtime, trace, observation 데이터 형식을 사람이 읽기 쉽게 정리한다. 코드와 다르면 Python 코드가 최종 기준이다.
 
-## 1. 경계와 책임
-
-```text
-인증된 요청
-  -> Agent / LLM의 도구 호출 제안
-  -> Runtime Validation
-  -> ToolIntent -> PolicyDecision
-  -> ApprovalStore (필요한 경우에만)
-  -> 선택적 legacy authorization -> Runtime Dispatcher
-  -> RuntimeResult / LLM Observation
-```
-
-LLM은 호출을 *제안*할 수만 있다. capability를 부여하거나, trust를 정하거나, approval ID를 발급하거나, actor를 인증하거나, Runtime을 우회할 수 없다.
-
-## 2. 도구 스키마 (LLM에 제공)
-
-`Agent.py`의 `TOOLS`는 OpenAI Responses API용 function tool 정의다. `strict: true`는 모델이 JSON 모양을 따르게 하지만, 스키마 준수는 authorization이 아니므로 `runtime.validate_tool_call()`이 검사를 다시 한다.
-
-| 도구 | 필수 인자 | Capability | Runtime 동작 |
-|---|---|---|---|
-| `calculator` | `expression: string` | `calculator.execute` | 안전한 AST 산술만 계산 |
-| `get_time` | 없음 | `clock.read` | UTC 시간 반환 |
-| `read_file` | `path: string` | `filesystem.read` | sandbox 내부만 읽기 |
-| `write_file` | `path: string`, `content: string` | `filesystem.write` | sandbox 내부만 쓰기 |
-| `list_files` | `path: string` | `filesystem.list` | sandbox 내부만 나열 |
-| `run_command` | `command: string` | `command.read` | shell 없이 논리적 `pwd`, `ls`, `cat`만 |
-
-누락·추가·잘못된 타입의 인자는 validation에서 거부된다. 경로 도구는 `SANDBOX_ROOT` 기준 상대 경로를 쓴다. 즉 `notes.txt`는 맞지만 `sandbox/notes.txt`는 아니다. 기계가 읽는 ToolIntent 입력 계약은 `schemas/tool-call.schema.json`에 있다.
-
-## 3. ToolIntent
-
-`ToolIntent`는 정규화된 작업 제안이며 permission 자체가 아니다.
-
-```json
-{
-  "run_id": "run_...",
-  "call_id": "call_...",
-  "actor": "user-001",
-  "tool_name": "write_file",
-  "arguments": {"path": "output.txt", "content": "summary"},
-  "provenance": {"kind": "user_task", "source": "interactive-user"},
-  "capability": "filesystem.write",
-  "action": "write",
-  "resource": "output.txt",
-  "agent_step": 2
-}
-```
-
-`fingerprint()`는 `tool_name`, `arguments`, `actor`, `capability`, `action`, `resource`의 canonical JSON을 hash한다. `run_id`, `call_id`, `agent_step`은 제외하므로 정확히 같은 작업의 재시도는 승인과 일치할 수 있다. fingerprint는 비교용 무결성 값이지 비밀번호나 권한 토큰이 아니다.
-
-## 4. PolicyDecision
-
-```json
-{
-  "policy_decision": "allow | deny | approval_required",
-  "reason": "BASELINE_CAPABILITY_ALLOWED",
-  "capability": "filesystem.read",
-  "action": "read",
-  "resource": "notes.txt",
-  "trust": "user_controlled"
-}
-```
-
-기본 정책은 민감 파일명, unknown capability, repository/tool/external 콘텐츠에서 유래한 도구 실행 권한을 거부한다. **untrusted provenance는 approval 단계 이전에 무조건 `deny`된다. approval ID가 있어도 되살릴 수 없다.**
-
-직접 사용자 유래 요청은 다음 범위에서만 평가된다.
-
-- `read_file`: root file(`notes.txt`) 또는 `data/...`
-- `list_files`: sandbox root(`.`) 또는 `data/...`
-- `write_file`: root file(`output.txt`)만 가능하며 `approval_required`
-- `write_file("data/out.txt")`와 다른 하위 디렉터리 쓰기: 승인 여부와 관계없이 `deny`
-
-실행 설정표는 `security/permission.py`, 설명 문서는 `permission_policy.md`에 있다.
-
-## 5. ApprovalState
-
-```json
-{
-  "approval_id": "apr_<UUID>",
-  "status": "pending",
-  "intent_fingerprint": "sha256 hex string",
-  "requested_at": "UTC ISO-8601 timestamp",
-  "expires_at": "UTC ISO-8601 timestamp",
-  "approver": null
-}
-```
-
-`ApprovalStore.request()`가 `apr_<UUID>`를 만든다. 이것은 Agent ID, 사용자 ID, DID가 아니라 승인 record의 식별자다.
-
-| 상태 | 의미 | Dispatcher 도달 가능? |
-|---|---|---:|
-| `not_required` | 이 검사에 approval ID가 필요 없었음 | Policy가 allow인 경우만 |
-| `invalid` | 제공된 ID에 record가 없음 | 아니오 |
-| `pending` | record는 있으나 권한 있는 승인자가 아직 결정하지 않음 | 아니오 |
-| `approved` | 승인자가 만료 전 승인함 | fingerprint가 같을 때만 후보 |
-| `rejected` | 승인자가 거절함 | 아니오 |
-| `expired` | TTL이 지남 | 아니오 |
-| `consumed` | 일치한 grant가 dispatch 전에 한 번 소비됨 | 재사용 불가 |
+## 1. Runtime 경계
 
 ```text
-approval_required -> request() -> pending
-pending -> approve() -> approved -> consume() -> consumed
-pending -> reject() -> rejected
-pending/approved -> resolve() 후 TTL 만료 -> expired
+LLM Tool Proposal
+  -> validation
+  -> ToolIntent
+  -> PolicyDecision
+  -> AuthorizationDecision
+  -> ApprovalState (필요 시)
+  -> RuntimeResult
+  -> ObservationEnvelope (성공 결과)
 ```
 
-actor, 도구, path, content, capability, action, resource 중 하나라도 바뀌면 fingerprint가 바뀌므로 새 승인이 필요하다.
+LLM은 proposal을 만들 뿐 실행 권한이 없다. 실제 실행은 `runtime.py/Runtime._dispatch()`만 수행한다.
 
-### 로컬 실험 흐름
+## 2. ToolIntent 형식
 
-1. 직접 사용자 쓰기 요청은 `approval_required`와 `approval_id: apr_...`를 반환한다.
-2. 같은 `Agent_v0.3.2.py` 프로세스에서 `/approve apr_...`를 입력한다.
-3. 데모 control이 `demo-admin`으로 `ApprovalStore.approve()`를 호출한다. 이 시점에는 파일을 쓰지 않는다.
-4. 정확히 같은 직접 사용자 요청을 반복한다. Runtime이 ID와 fingerprint를 비교하고 grant를 소비한 뒤 dispatch한다.
+`security/types.py/ToolIntent`는 Runtime이 판단하는 정규화된 요청이다.
 
-`demo-admin`은 실험용 이름이지 실제 인증이 아니다.
+```text
+run_id
+call_id
+actor
+tool_name
+arguments
+provenance
+capability
+action
+resource
+agent_step
+```
 
-## 6. 인증된 actor와 approver
+`actor`는 test harness 또는 인증 session이 전달한다. LLM, tool output, 파일 내용은 actor를 정하지 못한다.
 
-현재의 `actor="user-001"`은 lab label일 뿐 인증이 아니다. 실제 서비스에서는 API/backend가 Agent 호출 전에 서명된 session, OAuth/OIDC token, client certificate 등을 검증한다. 그 뒤 검증된 immutable subject claim(예: `user:42`)과 서버 측 role에서 actor를 정한다. 사용자 메시지, 도구 인자, repository 콘텐츠, LLM은 actor를 정하면 안 된다.
+## 3. Provenance 형식
 
-승인 endpoint도 `approvals:write` 같은 별도 permission으로 보호한다. endpoint가 `ApprovalStore.approve(id, approver=verified_subject)`를 호출하고 그 주체를 기록한다. 요청 actor라고 해서 자동으로 approver가 되는 것은 아니다.
+`security/provenance.py/Provenance`는 ToolIntent가 어떤 입력 문맥에서 나왔는지 기록한다.
 
-## 7. RuntimeResult와 LLM Observation
+```text
+kind
+source
+parent_event_id        # 이전 trace 형식과의 호환 필드. Day 6에서는 parent call ID를 담는다.
+received_at
+attributes
+```
+
+`kind`와 trust의 기본 대응은 다음과 같다.
+
+| ProvenanceKind | TrustLabel |
+|---|---|
+| `USER_TASK` | `USER_CONTROLLED` |
+| `SYSTEM` | `TRUSTED` |
+| `REPOSITORY_CONTENT` | `UNTRUSTED` |
+| `TOOL_OBSERVATION` | `UNTRUSTED` |
+| `EXTERNAL_CONTENT` | `UNTRUSTED` |
+
+이 변환은 `security/trust.py/label_trust(provenance_kind)`이 수행한다.
+
+## 4. ObservationEnvelope 형식
+
+`security/types.py/ObservationEnvelope`는 성공한 tool 결과 하나를 감싼다.
+
+```python
+ObservationEnvelope(
+    observation_id="obs_...",
+    parent_call_id="call_...",
+    source_kind=ProvenanceKind.REPOSITORY_CONTENT,
+    source="data/safe_note.txt",
+    trust=TrustLabel.UNTRUSTED,
+    result_digest="sha256:...",
+    content="실제 tool 결과 문자열",
+)
+```
+
+| 필드 | 의미 |
+|---|---|
+| `observation_id` | 이 tool 결과를 식별하는 ID |
+| `parent_call_id` | 이 결과를 만든 tool call ID |
+| `source_kind` | repository/tool/external 중 출처 종류 |
+| `source` | 파일 경로 또는 tool 이름 같은 출처 식별자 |
+| `trust` | source kind에서 계산한 trust label |
+| `result_digest` | content의 SHA-256 digest |
+| `content` | 다음 LLM turn에 data로 전달할 실제 결과 |
+
+`source`는 content나 LLM 최종 답변이 아니다.
+
+## 5. RuntimeResult와 LLM 전달 형식
+
+`RuntimeResult`는 Runtime의 실행 결과다. `runtime.py/to_observation()`은 이를 LLM 전달용 작은 객체로 바꾼다.
+
+```text
+RuntimeResult.success(data="파일 내용")
+  -> to_observation(...)
+  -> {"status": "success", "data": "파일 내용"}
+```
+
+동시에 Agent는 `make_observation()`으로 Envelope을 만들고 trace에 기록한다.
+
+```text
+LLM에 전달: status/data 또는 status/error
+Runtime/trace에 유지: source/trust/digest/observation ID
+```
+
+## 6. 복수 observation 형식
+
+성공한 tool call마다 Envelope 하나가 생긴다.
+
+```text
+call-read-01 -> obs-read-01
+call-calc-01 -> obs-calc-01
+```
+
+`provenance_for_observations()`는 다음 ToolIntent에 쓸 Provenance 하나를 만든다.
+
+```text
+attributes.observation_ids = [obs-read-01, obs-calc-01]
+attributes.sources = [data/safe_note.txt, calculator]
+attributes.source_kinds = [repository_content, tool_observation]
+attributes.parent_call_ids = [call-read-01, call-calc-01]
+```
+
+Envelope이 하나면 원래 source kind를 유지한다. 여러 개면 provenance `kind=TOOL_OBSERVATION`, `source=multiple_observations`가 된다.
+
+## 7. Policy / Authorization / Approval 형식
+
+```text
+Validation
+  -> PolicyDecision
+  -> AuthorizationDecision
+  -> ApprovalState (필요 시)
+  -> RuntimeResult
+```
+
+`security/policy.py/PolicyEngine.evaluate(intent)`는 실행하지 않고 판단만 한다.
+
+```text
+provenance kind에서 trust 계산
+-> 민감 resource 이름 검사
+-> capability allow-list 검사
+-> untrusted provenance 검사
+-> 일반 resource/command scope 검사
+-> allow / deny / approval_required 반환
+```
+
+`UNTRUSTED`이면 Policy가 Authorization과 Approval보다 먼저 `deny`를 반환한다.
+
+## 8. JSONL trace 형식
+
+각 줄은 JSON 이벤트 하나다.
 
 ```json
-{
-  "ok": false,
-  "status": "approval_required",
-  "end_stage": "approval",
-  "data": null,
-  "error": {"code": "APPROVAL_REQUIRED", "message": "WRITE_REQUIRES_EXPLICIT_APPROVAL"},
-  "meta": {
-    "tool_name": "write_file",
-    "call_id": "call_...",
-    "policy_decision": "approval_required",
-    "approval": "pending",
-    "approval_id": "apr_..."
-  }
-}
+{"event_id":"evt_...","timestamp":"UTC ISO-8601","run_id":"run_...","call_id":"call_... 또는 null","event":"event name"}
 ```
 
-`to_observation()`은 의도적으로 더 작은 LLM 전달용 객체를 만든다. 보안·감사 데이터는 모델 권한이 아니라 trace에 둔다.
-
-## 8. JSONL trace 스키마
-
-각 줄은 JSON 이벤트 하나이며 다음 envelope를 가진다.
-
-```json
-{"event_id":"evt_<UUID>","timestamp":"UTC ISO-8601","run_id":"run_...","call_id":"call_... 또는 null","event":"이벤트 이름"}
-```
-
-아래 공통 키는 모든 이벤트에 존재한다. 해당 단계에서 아직 모르는 값은 `null`이라 evaluator가 안정적인 형태의 row를 읽을 수 있다.
+모든 이벤트에는 아래 공통 키가 있다. 해당 단계에서 값이 없으면 `null`이다.
 
 ```text
 agent_step, actor, tool_name, arguments, provenance, trust, capability,
-action, resource, approval, approval_id, policy_decision, reason,
-validation_allowed, runtime_status, end_stage, ok, error_code
+action, resource, approval, approval_id, policy_decision,
+authorization_decision, authorization_reason, required_approver, reason,
+validation_allowed, runtime_status, end_stage, ok, error_code,
+observation_id, parent_call_id, source_kind, source, source_trust,
+result_digest
 ```
 
 | 이벤트 | 기록 주체 | 의미 |
 |---|---|---|
-| `run_start`, `model_request`, `model_response`, `agent_tool_proposal`, `provenance_transition`, `final_response`, `run_end` | AgentEventLogger | LLM loop 감사 |
-| `validation` | Runtime | intent 생성 전의 malformed/escape 요청 차단 |
-| `tool_intent` | Runtime | 정규화된 요청 |
-| `policy_decision` | Runtime | allow/deny/approval-required 결정 |
-| `approval` | Runtime | Runtime이 확인한 pending/approved/consumed record |
-| `approval_state_changed` | trusted approval control | 명시적 승인 action |
-| `runtime_result` | Runtime | 최종 상태와 중단 단계 |
+| `tool_intent` | Runtime | 정규화된 도구 요청 |
+| `policy_decision` | Runtime | allow / deny / approval_required 판단 |
+| `authorization_decision` | Runtime | actor-resource-action 관계 판단 |
+| `approval` | Runtime | pending / approved / consumed 상태 |
+| `runtime_result` | Runtime | 최종 결과와 중단 단계 |
+| `observation_created` | TraceLogger | tool 결과의 source/trust/digest 기록 |
+| `provenance_transition` | Agent loop | 다음 ToolIntent provenance 전이 |
 
-`policy_decision` 이벤트의 `approval`은 `null`이다. 아직 approval record를 만들거나 읽지 않았기 때문이다. 이후 `approval` 이벤트에서 `pending`, `approved`, `consumed`가 된다.
+## 9. 현재 Day 6 회귀 테스트
 
-## 9. Approval 호출 위치
+`test_observation.py`는 LLM API 없이 synthetic observation 두 개를 만들고 후속 `write_file`을 Runtime에 전달한다.
 
-1. `runtime.Runtime.execute_tool()`이 `PolicyDecision`을 얻는다.
-2. `APPROVAL_REQUIRED`일 때만 `ApprovalStore.resolve(approval_id)`를 호출한다.
-3. 일치하는 approved record가 없으면 `ApprovalStore.request()`를 호출하고, pending을 기록한 뒤 `_dispatch()` 전에 반환한다.
-4. `Agent_v0.3.2.py:approve_pending_request()`는 `ApprovalStore.approve()`를 호출하는 로컬 데모다.
-5. 일치하는 재시도에서만 Runtime이 `_dispatch()` 직전에 `ApprovalStore.consume()`을 호출한다.
-
-파일·웹·도구 출력 유래 명령은 1번의 Policy에서 `deny`되므로 2~5번으로 가지 않는다. 채팅에 `승인`이라고 쓰는 것은 trusted control이 `approve()`를 호출하기 전까지 단순한 모델 입력일 뿐이다.
-
-## 10. Day 6 ObservationEnvelope 목표 계약
-
-Day 5의 `RuntimeResult.data`를 다음 LLM turn에 그대로 전달하는 대신, Day 6에서는 아래 metadata를 붙인 envelope를 유지하는 것을 목표로 한다.
-
-```json
-{
-  "observation_id": "obs_...",
-  "parent_event_id": "call_read_...",
-  "source_kind": "repository_content | tool_observation | external_content",
-  "source": "data/injected_note.txt",
-  "trust": "untrusted",
-  "result_digest": "sha256:...",
-  "content": "LLM context에 전달할 데이터"
-}
+```text
+Envelope 두 개
+-> 다음 provenance에 두 observation ID가 있는지 검사
+-> write_file
+-> Policy DENY
+-> Dispatcher 0회
+-> evaluator 확인
 ```
 
-`content`는 모델이 읽을 수 있는 data다. `actor`, `PolicyDecision`, `AuthorizationDecision`, `Capability`, `ApprovalState`는 observation의 입력이 아니며, observation text가 직접 수정할 수 없다. 다음 ToolIntent가 observation에서 유래했다면 provenance는 envelope의 source/parent/trust를 보존해야 한다.
-
-현재 코드에 이 구조가 완전히 반영되기 전까지 이 절은 **구현 목표 계약**이다. 구현 뒤에는 JSONL trace와 fixture test도 함께 갱신한다.
+trace 파일은 `traces/trace_D6_EXP.jsonl`이다.

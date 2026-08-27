@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from .provenance import Provenance
 from .types import ProvenanceKind, TrustLabel
 
 
@@ -15,6 +14,6 @@ DEFAULT_TRUST_BY_PROVENANCE = {
 }
 
 
-def label_trust(provenance: Provenance) -> TrustLabel:
+def label_trust(provenance_kind: ProvenanceKind) -> TrustLabel:
     """간접 지시를 포함할 수 있는 콘텐츠는 기본적으로 untrusted로 취급한다."""
-    return DEFAULT_TRUST_BY_PROVENANCE[provenance.kind]
+    return DEFAULT_TRUST_BY_PROVENANCE[provenance_kind]

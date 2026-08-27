@@ -68,4 +68,6 @@ Day 5의 resource 접근 규칙은 유지한다. Day 6은 **resource/tool 결과
 
 repository, tool, external/MCP observation은 기본 `untrusted`다. observation에서 유래한 후속 ToolIntent는 `PolicyEngine`이 먼저 평가하며, `untrusted`이면 approval을 요구하는 대신 `DENY`되어 Authorization·Approval·Dispatcher에 도달하지 않아야 한다.
 
-이 절은 Day 6의 구현 목표다. `ObservationEnvelope`와 새 trace 필드가 코드에 추가되기 전에는 문서만으로 구현 완료를 주장하지 않는다.
+Day 6 baseline은 `ObservationEnvelope`와 trace 필드를 사용한다. observation이 LLM 문맥에
+남아 있는 동안 후속 ToolIntent는 `untrusted`로 평가되며, Policy는 이를 approval보다 먼저
+거부한다. 이 문서는 그 보수적 baseline의 정책 기준이다.

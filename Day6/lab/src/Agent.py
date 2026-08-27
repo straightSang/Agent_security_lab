@@ -123,11 +123,10 @@ def execute_tool(
         agent_step=agent_step,
     ).to_dict()
 
-
+"""
 def observation_for_tool_output(runtime_result: Mapping[str, Any]) -> dict[str, Any]:
-    """기존 Observation Adapter의 의미를 분명히 한 별칭."""
     return to_observation(runtime_result)
-
+"""
 
 def run_responses_agent(user_input: str) -> str:
     """선택적으로 사용하는 최소 Responses API loop.
