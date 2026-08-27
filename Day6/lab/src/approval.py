@@ -5,7 +5,7 @@ approver identity (a test harness in this Lab, a session/IdP in production).
 
 이 파일은 인증 시스템이 아니라 테스트용 control-plane이다. approval security domain 은 security/approval.py에 있다. 
 
-Agent_v0.4.py가 approval.py를 호출하고, approval.py가 내부적으로 security/approval.py의 ApprovalStore를 사용한다.
+Agent_v0.5.py가 approval.py를 호출하고, approval.py가 내부적으로 security/approval.py의 ApprovalStore를 사용한다.
 """
 
 from __future__ import annotations

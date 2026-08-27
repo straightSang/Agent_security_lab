@@ -1,5 +1,4 @@
-"""Day 5 approval UX loop.  Agent_v0.3.2.py는 변경하지 않는다.
-
+"""
 이 파일은 인증 시스템이 아니라 테스트용 control-plane
 입력이다. 
 실제 운영에서는 IdP/session이 확인한 identity를 넘겨야 한다.

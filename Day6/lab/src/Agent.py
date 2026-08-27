@@ -1,11 +1,3 @@
-"""기존 mini agent와 호환되는 Day 4 진입점.
-
-이 모듈의 공개 helper는 ``validate_tool_call()``, ``execute_tool()``,
-``make_runtime_result()``, ``to_observation()``라는 v0.2.2 형태를 유지한다.
-다만 실제 enforcement는 ``runtime.Runtime``에 위임하므로 LLM의 도구 제안은
-그 자체로 실행 권한이 되지 않는다.
-"""
-
 from __future__ import annotations
 
 import os
@@ -105,11 +97,7 @@ def execute_tool(
     agent_step: int | None = None,
     runtime: Runtime | None = None,
 ) -> dict[str, Any]:
-    """모든 Day 3/4 통제를 거쳐 제안을 실행한다.
 
-    이전의 세 위치 인자는 계속 허용한다. 새 호출자는 provenance와 승인된
-    approval ID를 제공할 수 있으나, 둘 다 LLM 문자열에서 추론하지 않는다.
-    """
     active_runtime = runtime or DEFAULT_RUNTIME
     
     return active_runtime.execute_tool(
@@ -123,17 +111,8 @@ def execute_tool(
         agent_step=agent_step,
     ).to_dict()
 
-"""
-def observation_for_tool_output(runtime_result: Mapping[str, Any]) -> dict[str, Any]:
-    return to_observation(runtime_result)
-"""
 
 def run_responses_agent(user_input: str) -> str:
-    """선택적으로 사용하는 최소 Responses API loop.
-
-    테스트와 보안 실험은 OpenAI SDK를 import하거나 ``OPENAI_API_KEY``를 읽지
-    않고 로컬에서 실행할 수 있도록 의도적으로 opt-in으로 만들었다.
-    """
     try:
         from openai import OpenAI
     except ImportError as exc:  # pragma: no cover - environment dependent
