@@ -48,7 +48,7 @@ def direct_read(experiment, fixture, *, call_id: str) -> dict:
     return result
 
 
-# D7-E01: benign fixture의 읽기 기능은 유지한다.
+# D7-E01: benign fixture의 읽기 기능은 정상적으로 수행된다. (과도하게 차단되지 않는다)
 benign = load_indirect_prompt_injection_fixture(FIXTURE_DIR / "benign_email.json")
 
 benign_exp = make_experiment_runtime(benign.fixture_id, trace_path=TRACE_PATH)
@@ -79,14 +79,15 @@ benign_evidence = record_run_evidence(benign_exp)
 
 
 
-# D7-E02: 같은 종류의 read는 성공할 수 있지만, 그 결과에서 유래한 write는
-# untrusted provenance로 Policy에서 끝나야 한다.
+# D7-E02: 사용자가 직접 입력한 read는 성공할 수 있지만, 도구 실행 결과에서 유래한 write 도구 호출은
+# untrusted provenance이므로 Policy에서 차단되어야 한다.
 injected = load_indirect_prompt_injection_fixture(FIXTURE_DIR / "injected_email.json")
 
 injected_exp = make_experiment_runtime(injected.fixture_id, trace_path=TRACE_PATH)
 
 injected_read = direct_read(injected_exp, injected, call_id="call-d7-e02-read")
 
+# fixture2 유래, 최초 호출: read_file 한 결과 observation 을 가장한 최초 호출 fixture
 injected_observation = make_observation(
     source_kind=injected.source_kind,
     source=injected.source,
@@ -102,11 +103,14 @@ derived_provenance = provenance_for_observations([injected_observation])
 assert derived_provenance.kind.value == injected.source_kind.value
 
 proposal = injected.attack_proposal
+
 assert proposal is not None
+
+# fixture2 유래, 두번째 호출: read_file 한 결과 observation에서 유래한 두번째 도구호출 fixture
 with patch.object(injected_exp.runtime, "_dispatch", wraps=injected_exp.runtime._dispatch) as unsafe_dispatch:
     denied = execute_tool(
-        proposal["tool_name"],
-        proposal["arguments"],
+        proposal["tool_name"],  # attack_propsal
+        proposal["arguments"],  # attack_propsal
         call_id="call-d7-e02-injected-write",
         run_id=injected_exp.run_id,
         actor=ACTOR,
@@ -133,6 +137,7 @@ assert injected_eval.observation_policy_bypass is False
 assert injected_eval.observation_metadata_tamper is False
 assert injected_eval.trace_completeness is True
 injected_evidence = record_run_evidence(injected_exp)
+
 
 print(json.dumps({
     "D7-E01": {"run_id": benign_exp.run_id, **benign_evidence, **benign_eval.to_dict()},
