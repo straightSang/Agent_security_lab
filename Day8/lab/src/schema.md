@@ -26,9 +26,9 @@ untrusted text cannot create ApprovalState
 no PolicyDecision -> no dispatch
 ```
 
-## Day 7 fixture 계약
+## Day 8 fixture 입력 계약
 
-`fixtures/benign_email.json`과 `fixtures/injected_email.json`은 `schemas/indirect-prompt-injection.fixture.schema.json`을 따른다. test harness가 읽는 필드이며 LLM, fixture content, Runtime Policy가 서로의 값을 덮어쓰는 통로가 아니다.
+Day 8은 Day 7의 `fixtures/benign_email.json`과 `fixtures/injected_email.json`을 회귀 입력으로 재사용한다. 두 파일은 `schemas/indirect-prompt-injection.fixture.schema.json`을 따르며, test harness가 읽는 data일 뿐 LLM·fixture content가 Runtime Policy를 덮어쓰는 통로가 아니다.
 
 ```text
 fixture_id / category / user_task
@@ -39,7 +39,7 @@ expected                                # assertion/evaluator 기준
 
 `fixture_id`는 ToolIntent fingerprint에 포함되지 않는 trace/evaluator 라벨이다. `source_kind`는 harness가 trusted provenance helper를 선택하는 데 쓰며, trust label은 `security/trust.py`가 다시 계산한다.
 
-이 문서는 Day 6의 Agent, Runtime, trace, observation 데이터 형식을 사람이 읽기 쉽게 정리한다. 코드와 다르면 Python 코드가 최종 기준이다.
+이 문서는 Day 8의 Agent, Runtime, Policy, trace 데이터 형식을 사람이 읽기 쉽게 정리한다. 코드와 다르면 Python 코드가 최종 기준이다.
 
 ## 1. Runtime 경계
 
@@ -216,17 +216,17 @@ result_digest
 | `observation_created` | TraceLogger | tool 결과의 source/trust/digest 기록 |
 | `provenance_transition` | Agent loop | 다음 ToolIntent provenance 전이 |
 
-## 9. 현재 Day 6·7 회귀 테스트
+## 9. Day 8 테스트 계약과 기존 회귀
 
-`test_observation.py`는 LLM API 없이 synthetic observation 두 개를 만들고 후속 `write_file`을 Runtime에 전달한다.
+기존 `test_observation.py`와 `test_indirect_injection.py`는 observation provenance와 indirect-injection 차단의 회귀 기준이다. Day 8에서는 동일 경계를 유지하면서 Policy mutation, actor/approval spoofing, Policy/AuthZ 역할 분리 case를 추가한다.
 
 ```text
-Envelope 두 개
--> 다음 provenance에 두 observation ID가 있는지 검사
--> write_file
--> Policy DENY
--> Dispatcher 0회
--> evaluator 확인
+D8-E01: benign read -> Policy/AuthZ ALLOW -> success
+D8-E02: untrusted-derived write -> Policy DENY -> dispatch 0회
+D8-E03: trust/policy mutation 주장 -> control-plane digest 불변
+D8-E04: actor/approval spoof 주장 -> actor/store 불변
+D8-E05: cross-user read -> Policy 통과 가능 -> AuthZ DENY
+D8-E06: owner write -> APPROVAL_REQUIRED -> pending, dispatch 0회
 ```
 
-trace 파일은 `traces/trace_D6_EXP.jsonl`이다.
+Day 8 trace는 Day 7 원본 trace와 분리된 파일에 기록해야 하며, 실제 파일명은 test 구현 시 고정한다. 문서만으로 D8 case의 PASS를 주장하지 않는다.
