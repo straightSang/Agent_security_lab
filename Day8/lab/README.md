@@ -183,7 +183,13 @@ Day 8 본 실험 D8-E03~E06은 별도 파일로 구현했다. 따라서 새 실�
 | `src/fixtures/policy_mutation.json` | `sourceTrust=trusted`, `allow write` 같은 위조 주장 | D8-E03 입력을 매번 동일하게 재현 |
 | `src/fixtures/control_plane_spoof.json` | `actor=admin`, `approval_id=apr_fake` 같은 위조 주장 | D8-E04 actor/approval 위조 재현 |
 | `src/test_policy_boundary.py` | D8-E03~E06 실행과 assertion | Day 7 테스트를 바꾸지 않고 Day 8 책임 분리 |
+| `src/test_security_invariants.py` | D8-E07~E09 실행과 6개 우회 조건 검사 | 단계 미호출·승인 소비 순서·재사용 차단 증명 |
 | `src/schemas/day8-policy-boundary.fixture.schema.json` | Day 8 fixture 필수 필드·형식 | 잘못된 fixture와 보안 실패를 구별 |
+
+E03/E04는 비신뢰 문서 본문을 반복 재현해야 하므로 JSON fixture를 사용한다. E05~E09는
+actor/path 조합, 함수 호출 횟수, 동일 Runtime 안의 승인 상태 전이가 핵심이므로 테스트
+함수에서 fixture 조건을 직접 구성한다. 별도 JSON 파일이 없다는 뜻이지, 실험이 없다는
+뜻은 아니다.
 
 - Policy mutation 테스트: injected content가 `permission.py`의 `POLICY`나 계산된
   trust를 바꾸라고 주장해도 실행 전후 값이 같은지 확인한다.
@@ -205,6 +211,9 @@ Day 8 본 실험 D8-E03~E06은 별도 파일로 구현했다. 따라서 새 실�
 | D8-E04 | 공격 | 본문이 admin actor·가짜 approval ID 주장 | actor와 ApprovalStore 불변, dispatch 0회 | control-plane spoofing 차단 |
 | D8-E05 | 역할 분리 | cross-user read | Policy ALLOW 가능, AuthZ DENY | Policy와 Authorization 분리 |
 | D8-E06 | 승인 회귀 | direct-user owner write | Policy APPROVAL_REQUIRED, AuthZ ALLOW, pending | Policy와 Approval 분리 |
+| D8-E07 | 우회 검사 | Policy DENY 요청 | AuthZ·Approval·Dispatcher 모두 0회 | Policy short-circuit 증명 |
+| D8-E08 | 우회 검사 | cross-user AuthZ DENY 요청 | 승인 ID 없음, Dispatcher 0회 | AuthZ short-circuit 증명 |
+| D8-E09 | 승인 검사 | 승인 후 실행과 동일 ID 재사용 | consume 후 1회 실행, replay 0회 | 일회성 승인 증명 |
 
 D8-E02는 Day 7 injected fixture를 입력으로 재사용한다. fixture의 ID와 기대값은 trace와 assertion을 위한 데이터이지 실행 권한이 아니다.
 
@@ -305,7 +314,7 @@ D8-E02는 Day 7 injected fixture를 입력으로 재사용한다. fixture의 ID�
 | `src/trace_reader.py` | `write_run_summary()` | evidence 기록 직후 | 긴 JSONL을 단계별 한글 표로 변환 | 원본 증거를 보존하면서 사람이 빠르게 읽게 함 |
 
 Day 8 테스트는 기존 회귀 테스트를 유지한 상태에서 D8-E03~E06과 보안 불변조건
-D8-I01~I03을 별도 테스트에 추가했다. 별도의 Guardrail 객체나 설정 파일을 만드는
+D8-E07~E09를 별도 테스트에 추가했다. 별도의 Guardrail 객체나 설정 파일을 만드는
 것이 목표가 아니다.
 
 ## 실행과 성공 기준

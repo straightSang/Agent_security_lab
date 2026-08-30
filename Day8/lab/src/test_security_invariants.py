@@ -58,7 +58,7 @@ def assert_no_legacy_authorizer() -> None:
 def check_policy_deny_short_circuit() -> dict:
     """Policy DENY 뒤에는 인가·승인·실행이 모두 호출되지 않아야 한다."""
     experiment = make_experiment_runtime(
-        "D8-I01", trace_path=TRACE_BASE, seed_files=()
+        "D8-E07", trace_path=TRACE_BASE, seed_files=()
     )
     runtime = experiment.runtime
     with (
@@ -74,7 +74,7 @@ def check_policy_deny_short_circuit() -> dict:
             run_id=experiment.run_id,
             actor=ACTOR,
             provenance=repository_provenance("synthetic-untrusted-input"),
-            fixture_id="D8-I01",
+            fixture_id="D8-E07",
             runtime=runtime,
         )
     assert result["end_stage"] == "policy"
@@ -96,7 +96,7 @@ def check_policy_deny_short_circuit() -> dict:
 def check_authorization_deny_short_circuit() -> dict:
     """AuthZ DENY 뒤에는 승인 번호나 실제 실행이 없어야 한다."""
     experiment = make_experiment_runtime(
-        "D8-I02",
+        "D8-E08",
         trace_path=TRACE_BASE,
         seed_files=("data/user-002/private.txt",),
     )
@@ -113,7 +113,7 @@ def check_authorization_deny_short_circuit() -> dict:
             run_id=experiment.run_id,
             actor=ACTOR,
             provenance=direct_user_provenance("fixture-harness"),
-            fixture_id="D8-I02",
+            fixture_id="D8-E08",
             runtime=runtime,
         )
     assert result["end_stage"] == "authorization"
@@ -136,7 +136,7 @@ def check_authorization_deny_short_circuit() -> dict:
 def check_approval_consume_and_replay() -> dict:
     """승인된 동일 intent는 consume 뒤 한 번만 실행되어야 한다."""
     experiment = make_experiment_runtime(
-        "D8-I03", trace_path=TRACE_BASE, seed_files=()
+        "D8-E09", trace_path=TRACE_BASE, seed_files=()
     )
     runtime = experiment.runtime
     arguments = {
@@ -152,7 +152,7 @@ def check_approval_consume_and_replay() -> dict:
             run_id=experiment.run_id,
             actor=ACTOR,
             provenance=direct_user_provenance("fixture-harness"),
-            fixture_id="D8-I03",
+            fixture_id="D8-E09",
             runtime=runtime,
         )
     assert pending["status"] == "approval_required"
@@ -190,7 +190,7 @@ def check_approval_consume_and_replay() -> dict:
             actor=ACTOR,
             provenance=direct_user_provenance("fixture-harness"),
             approval_id=approval_id,
-            fixture_id="D8-I03",
+            fixture_id="D8-E09",
             runtime=runtime,
         )
     assert success["ok"] is True
@@ -208,7 +208,7 @@ def check_approval_consume_and_replay() -> dict:
             actor=ACTOR,
             provenance=direct_user_provenance("fixture-harness"),
             approval_id=approval_id,
-            fixture_id="D8-I03",
+            fixture_id="D8-E09",
             runtime=runtime,
         )
     assert replay["ok"] is False
@@ -239,9 +239,9 @@ assert_no_direct_dispatch_call()
 assert_no_legacy_authorizer()
 
 results = {
-    "D8-I01": check_policy_deny_short_circuit(),
-    "D8-I02": check_authorization_deny_short_circuit(),
-    "D8-I03": check_approval_consume_and_replay(),
+    "D8-E07": check_policy_deny_short_circuit(),
+    "D8-E08": check_authorization_deny_short_circuit(),
+    "D8-E09": check_approval_consume_and_replay(),
 }
 
 print(json.dumps(results, ensure_ascii=False, indent=2))

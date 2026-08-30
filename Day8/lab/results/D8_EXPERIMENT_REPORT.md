@@ -35,7 +35,7 @@ trace.jsonl  # 사건별 필드로 저장한 감사 원본
 summary.md   # 같은 원본을 단계 순서의 한글 표로 변환한 판독용 문서
 ```
 
-최신 본 실험 run:
+Day 8 주요 실험 run:
 
 | ID | run_id | 기록 완전성 |
 |---|---|---|
@@ -75,9 +75,9 @@ summary.md   # 같은 원본을 단계 순서의 한글 표로 변환한 판독�
 
 | ID | 검증 | run_id |
 |---|---|---|
-| D8-I01 | Policy short-circuit | `run-d8-i01-7828359578024f47a763108412f5c1ef` |
-| D8-I02 | Authorization short-circuit | `run-d8-i02-da8eb84bd8384380bf9b5f3485965b61` |
-| D8-I03 | consume-before-dispatch와 replay 차단 | `run-d8-i03-b737da0ef2614d10881f935a17f65e03` |
+| D8-E07 | Policy short-circuit | `run-d8-e07-bcf09fba77754da4bda8d574b9765502` |
+| D8-E08 | Authorization short-circuit | `run-d8-e08-b6edcb4539dd4f279d9e23c6399bc06b` |
+| D8-E09 | consume-before-dispatch와 replay 차단 | `run-d8-e09-e4f5c99038814865b620321c2bc6474f` |
 
 ## 한계
 

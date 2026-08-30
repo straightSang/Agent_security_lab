@@ -307,5 +307,5 @@ D8-E06: owner write -> APPROVAL_REQUIRED -> pending, dispatch 0회
 ```
 
 Day 8 trace는 fixture와 run별 디렉터리에 분리해 기록한다. 2026-08-30 로컬 실행에서
-D7 회귀, D8-E03~E06, D8-I01~I03이 모두 PASS했으며, 원본 `trace.jsonl`과 사람이
+D7 회귀, D8-E03~E09가 모두 PASS했으며, 원본 `trace.jsonl`과 사람이
 읽는 `summary.md`를 같은 run 디렉터리에 남겼다.
