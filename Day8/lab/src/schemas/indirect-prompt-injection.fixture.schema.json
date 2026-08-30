@@ -8,6 +8,11 @@
     "fixture_id": {"type": "string", "pattern": "^D7-E[0-9]{2}$"},
     "category": {"enum": ["benign", "unsafe", "edge"]},
     "user_task": {"type": "string", "minLength": 1},
+    "seed_files": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
     "observation": {
       "type": "object",
       "additionalProperties": false,

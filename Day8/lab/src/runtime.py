@@ -7,7 +7,7 @@ import operator
 import shlex
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import Any, Mapping
 
 from security.authorization import AuthorizationEngine
 from security.approval import ApprovalStore
@@ -15,6 +15,7 @@ from security.capability import describe_intent
 from security.policy import PolicyEngine
 from security.provenance import Provenance
 from security.types import (
+    ApprovalState,
     ApprovalStatus,
     AuthorizationOutcome,
     Decision,
@@ -165,14 +166,13 @@ def calculator(expression: str) -> str:
 class Runtime:
     """권위 있는 실행 경계. allow 또는 유효한 승인 요청만 실행한다."""
 
-    def __init__(self, *, sandbox_root: Path, policy: PolicyEngine, approvals: ApprovalStore, trace_logger: TraceLogger, authorizer: AuthorizationEngine | None = None, legacy_authorizer: Callable[[ToolIntent], tuple[bool, str | None]] | None = None) -> None:
+    def __init__(self, *, sandbox_root: Path, policy: PolicyEngine, approvals: ApprovalStore, trace_logger: TraceLogger, authorizer: AuthorizationEngine | None = None) -> None:
         self.sandbox_root = sandbox_root.resolve()
         self.sandbox_root.mkdir(parents=True, exist_ok=True)
         self.policy = policy
         self.approvals = approvals
         self.trace = trace_logger
         self.authorizer = authorizer or AuthorizationEngine()
-        self.legacy_authorizer = legacy_authorizer
 
     def execute_tool(self, *, tool_name: str, arguments: Mapping[str, Any], call_id: str, run_id: str, actor: str, provenance: Provenance, approval_id: str | None = None, agent_step: int | None = None, fixture_id: str | None = None) -> RuntimeResult:
         # 1. Validation
@@ -183,6 +183,17 @@ class Runtime:
             self.trace.record_validation(run_id, tool_name, call_id, provenance, validation, result, actor=actor, agent_step=agent_step, fixture_id=fixture_id)
             
             return result
+
+        self.trace.record_validation(
+            run_id,
+            tool_name,
+            call_id,
+            provenance,
+            validation,
+            actor=actor,
+            agent_step=agent_step,
+            fixture_id=fixture_id,
+        )
 
         capability, action, resource = describe_intent(tool_name, arguments, validation, self.sandbox_root)
         
@@ -211,7 +222,7 @@ class Runtime:
         self.trace.record_authorization(intent, authorization)
         security_context = {**decision.trace_fields(), **authorization.trace_fields()}
 
-            # 1) DENY
+        # 1) DENY
         if authorization.outcome is AuthorizationOutcome.DENY:
 
             result = RuntimeResult.failure(
@@ -221,10 +232,13 @@ class Runtime:
             self.trace.record_result(intent, result)
             return result
 
-        approval_state = self.approvals.resolve(approval_id)
+        # ALLOW 요청은 ApprovalStore를 조회할 이유가 없다. 쓰기처럼 정책이
+        # APPROVAL_REQUIRED를 반환한 경우에만 승인 상태를 읽는다.
+        approval_state = ApprovalState(None, ApprovalStatus.NOT_REQUIRED)
 
-            # 2) APPROVAL_REQUIRED
+        # 2) APPROVAL_REQUIRED
         if decision.outcome is Decision.APPROVAL_REQUIRED:
+            approval_state = self.approvals.resolve(approval_id)
 
             if approval_state.status is not ApprovalStatus.APPROVED or approval_state.intent_fingerprint != intent.fingerprint():
                 
@@ -246,19 +260,6 @@ class Runtime:
                 return result
 
             self.trace.record_approval(intent, approval_state)
-
-
-        if self.legacy_authorizer is not None:
-
-            allowed, reason = self.legacy_authorizer(intent)
-
-            if not allowed:
-                
-                result = RuntimeResult.failure("forbidden", "authorization", tool_name, call_id, "FORBIDDEN", reason or "legacy authorization denied", security=security_context)
-                self.trace.record_result(intent, result)
-
-                return result
-
 
         if decision.outcome is Decision.APPROVAL_REQUIRED:
 

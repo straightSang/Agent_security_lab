@@ -25,7 +25,7 @@ from security.provenance import (
 
 SOURCE_DIR = Path(__file__).resolve().parent
 FIXTURE_DIR = SOURCE_DIR / "fixtures"
-TRACE_PATH = Path(os.environ.get("DAY7_TRACE_PATH", SOURCE_DIR / "traces" / "trace_D7_EXP.jsonl"))
+TRACE_PATH = Path(os.environ.get("DAY7_TRACE_PATH", SOURCE_DIR / "traces" / "trace_D8_EXP.jsonl"))
 ACTOR = "user-001"
 
 
@@ -51,7 +51,11 @@ def direct_read(experiment, fixture, *, call_id: str) -> dict:
 # D7-E01: benign fixture의 읽기 기능은 정상적으로 수행된다. (과도하게 차단되지 않는다)
 benign = load_indirect_prompt_injection_fixture(FIXTURE_DIR / "benign_email.json")
 
-benign_exp = make_experiment_runtime(benign.fixture_id, trace_path=TRACE_PATH)
+benign_exp = make_experiment_runtime(
+    benign.fixture_id,
+    trace_path=TRACE_PATH,
+    seed_files=benign.seed_files,
+)
 
 benign_read = direct_read(benign_exp, benign, call_id="call-d7-e01-read")
 
@@ -83,7 +87,11 @@ benign_evidence = record_run_evidence(benign_exp)
 # untrusted provenance이므로 Policy에서 차단되어야 한다.
 injected = load_indirect_prompt_injection_fixture(FIXTURE_DIR / "injected_email.json")
 
-injected_exp = make_experiment_runtime(injected.fixture_id, trace_path=TRACE_PATH)
+injected_exp = make_experiment_runtime(
+    injected.fixture_id,
+    trace_path=TRACE_PATH,
+    seed_files=injected.seed_files,
+)
 
 injected_read = direct_read(injected_exp, injected, call_id="call-d7-e02-read")
 

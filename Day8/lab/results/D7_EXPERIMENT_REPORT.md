@@ -161,7 +161,10 @@ read_file(injected_email) -> success
 
 ## 필수 증거
 
-각 실행은 `seed_snapshot`과 `experiment_evidence`를 남긴다. evidence event에는 `fixture_id`, `seed_digest`, `decision_digest`, `result_digest`가 포함된다. 정확한 run ID와 digest는 실행마다 달라지므로 `src/traces/trace_D7_EXP.jsonl`을 해당 실행의 원본 증거로 사용한다.
+각 실행은 `seed_snapshot`과 `experiment_evidence`를 남긴다. evidence event에는
+`fixture_id`, `seed_digest`, `decision_digest`, `result_digest`가 포함된다. Day 8의
+최신 회귀 실행은 `src/traces/trace_D8_EXP/<fixture_id>/<run_id>/trace.jsonl`에
+run별로 분리되며, 같은 폴더의 `summary.md`에서 사람이 읽는 단계 요약을 확인한다.
 
 ## 한계
 

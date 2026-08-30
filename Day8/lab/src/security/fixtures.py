@@ -23,6 +23,7 @@ class IndirectPromptInjectionFixture:
     source_kind: ProvenanceKind
     source: str
     content: str
+    seed_files: tuple[str, ...]
     expected: Mapping[str, Any]
     attack_proposal: Mapping[str, Any] | None = None
 
@@ -64,6 +65,13 @@ def load_indirect_prompt_injection_fixture(path: Path) -> IndirectPromptInjectio
     if not isinstance(raw["expected"], dict):
         raise ValueError("fixture expected must be an object")
 
+    seed_files = raw.get("seed_files", [observation["source"]])
+    if (
+        not isinstance(seed_files, list)
+        or not all(isinstance(item, str) and item for item in seed_files)
+    ):
+        raise ValueError("fixture seed_files must be a list of non-empty strings")
+
     return IndirectPromptInjectionFixture(
         fixture_id=str(raw["fixture_id"]),
         category=str(raw["category"]),
@@ -71,6 +79,7 @@ def load_indirect_prompt_injection_fixture(path: Path) -> IndirectPromptInjectio
         source_kind=source_kind,
         source=observation["source"],
         content=observation["content"],
+        seed_files=tuple(seed_files),
         expected=raw["expected"],
         attack_proposal=proposal,
     )

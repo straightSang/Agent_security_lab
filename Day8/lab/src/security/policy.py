@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable
-
 from .trust import label_trust
 from .permission import POLICY
 from .types import Capability, Decision, PolicyDecision, ToolIntent, TrustLabel
@@ -90,25 +88,3 @@ class PolicyEngine:
         delegated_tool = "read_file" if intent.action == "cat" else "list_files"
         scope = cls._resource_scope(intent.resource)
         return scope in POLICY[delegated_tool]["allowed_scopes"]
-
-
-def adapt_legacy_authorizer(authorize: Callable[..., Any], policy: Any) -> Callable[[ToolIntent], tuple[bool, str | None]]:
-    """점진적 마이그레이션 동안 이전 ``authorization.authorize``를 연결한다.
-
-    v0.2.2 변형은 위치 인자 시그니처가 서로 달랐다. 이 함수에 그 차이를
-    격리하고, 로컬 legacy 함수와 어댑터를 테스트한 뒤 동등한 정책 규칙이
-    ``PolicyEngine``에 옮겨지면 제거한다.
-    """
-    def check(intent: ToolIntent) -> tuple[bool, str | None]:
-        try:
-            raw = authorize(intent.tool_name, dict(intent.arguments), policy)
-
-        except TypeError:
-            raw = authorize(intent.tool_name, dict(intent.arguments))
-
-        if isinstance(raw, dict):
-            return bool(raw.get("allowed")), raw.get("reason")
-
-        return bool(raw), None if raw else "legacy authorization denied"
-
-    return check

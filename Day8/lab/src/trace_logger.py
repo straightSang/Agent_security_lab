@@ -1,4 +1,4 @@
-"""모든 이벤트에 Day 4 보안 필드를 갖는 추가 전용 JSONL trace."""
+"""사건별 필드만 기록하는 추가 전용 JSONL trace."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import json
 import uuid
 import warnings
 from datetime import datetime, timezone
+from enum import Enum
 from hashlib import sha256
 from pathlib import Path
 from typing import Any, Iterator, Mapping
@@ -13,42 +14,48 @@ from typing import Any, Iterator, Mapping
 from security.provenance import Provenance
 from security.types import ApprovalState, AuthorizationDecision, ObservationEnvelope, PolicyDecision, RuntimeResult, ToolIntent
 
-# 이 키들은 모든 이벤트에 존재한다. 아직 값을 알 수 없는 이벤트는 trace 모양을
-# 바꾸지 않고 null을 기록한다.
-TRACE_COMMON_FIELDS = (
-    "agent_step",
-    "fixture_id",
-    "actor",
-    "tool_name",
-    "arguments",
-    "provenance",
-    "trust",
-    "capability",
-    "requested_capability",
-    "action",
-    "resource",
-    "approval",
-    "approval_id",
-    "policy_decision",
-    "authorization_decision",
-    "authorization_reason",
-    "required_approver",
-    "reason",
-    "rule_id",
-    "validation_allowed",
-    "runtime_status",
-    "end_stage",
-    "ok",
-    "error_code",
-    "observation_id",
-    "parent_call_id",
-    "source_kind",
-    "source",
-    "source_trust",
-    "result_digest",
-    "seed_digest",
-    "decision_digest",
-)
+TRACE_BASE_FIELDS = ("event_id", "timestamp", "run_id", "event")
+
+# 모든 사건에 같은 빈 필드를 넣지 않는다. 사건 종류별 필수 필드만 선언하여
+# evaluator가 실제 기록 계약을 검사한다.
+TRACE_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
+    "seed_snapshot": ("fixture_id", "seed_manifest", "seed_digest"),
+    "control_plane_snapshot": (
+        "fixture_id", "phase", "control_plane_digest", "control_plane_state",
+    ),
+    "validation": ("call_id", "tool_name", "validation_allowed"),
+    "tool_intent": (
+        "call_id", "actor", "tool_name", "arguments", "provenance",
+        "capability", "action",
+    ),
+    "policy_decision": (
+        "call_id", "policy_decision", "reason", "rule_id", "trust",
+        "capability", "action",
+    ),
+    "authorization_decision": (
+        "call_id", "authorization_decision", "authorization_reason",
+    ),
+    "approval": ("call_id", "approval", "approval_id", "required_approver"),
+    "runtime_result": ("call_id", "ok", "runtime_status", "end_stage"),
+    "observation_created": (
+        "call_id", "observation_id", "parent_call_id", "source_kind",
+        "source", "source_trust", "result_digest",
+    ),
+    "experiment_evidence": (
+        "fixture_id", "seed_digest", "decision_digest", "result_digest",
+    ),
+}
+
+
+def missing_required_fields(event: Mapping[str, Any]) -> tuple[str, ...]:
+    """사건 종류에 필요한 필드 중 누락된 이름을 반환한다."""
+    missing = [name for name in TRACE_BASE_FIELDS if name not in event]
+    missing.extend(
+        name
+        for name in TRACE_REQUIRED_FIELDS.get(str(event.get("event")), ())
+        if name not in event
+    )
+    return tuple(missing)
 
 
 class TraceLogger:
@@ -57,59 +64,101 @@ class TraceLogger:
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def emit(self, event: str, run_id: str, *, call_id: str | None = None, **fields: Any) -> dict[str, Any]:
-
-        
         record = {
             "event_id": f"evt_{uuid.uuid4().hex}",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "run_id": run_id,
-            "call_id": call_id,
             "event": event,
-            **{name: None for name in TRACE_COMMON_FIELDS},
-            **fields,
         }
+        if call_id is not None:
+            record["call_id"] = call_id
+        record.update({name: value for name, value in fields.items() if value is not None})
 
         with self.path.open("a", encoding="utf-8") as handle:
-
-            handle.write(json.dumps(record, ensure_ascii=True, sort_keys=True, default=str) + "\n")
+            handle.write(json.dumps(record, ensure_ascii=False, sort_keys=True, default=str) + "\n")
         return record
 
-    @staticmethod
-    def digest(value: Any) -> str:
+    @classmethod
+    def canonicalize(cls, value: Any) -> Any:
+        """set·Enum을 포함한 값을 안정적으로 정렬 가능한 JSON 값으로 바꾼다."""
+        if isinstance(value, Enum):
+            return value.value
+        if isinstance(value, Mapping):
+            return {
+                str(key): cls.canonicalize(item)
+                for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+            }
+        if isinstance(value, (set, frozenset)):
+            return sorted(cls.canonicalize(item) for item in value)
+        if isinstance(value, (list, tuple)):
+            return [cls.canonicalize(item) for item in value]
+        return value
+
+    @classmethod
+    def digest(cls, value: Any) -> str:
         """실험 증거를 비교하기 위한 안정적인 SHA-256 digest를 만든다."""
-        canonical = json.dumps(value, ensure_ascii=True, sort_keys=True, default=str)
+        canonical = json.dumps(
+            cls.canonicalize(value),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        )
         return f"sha256:{sha256(canonical.encode('utf-8')).hexdigest()}"
 
-    def record_validation(self, run_id: str, tool_name: str, call_id: str, provenance: Provenance, validation: Mapping[str, Any], result: RuntimeResult, *, actor: str | None = None, agent_step: int | None = None, fixture_id: str | None = None) -> None:
-        self.emit("validation", run_id, call_id=call_id, fixture_id=fixture_id, agent_step=agent_step, actor=actor, tool_name=tool_name, provenance=provenance.to_dict(), validation_allowed=validation["allowed"], reason=validation.get("reason"), runtime_status=result.status, end_stage=result.end_stage, ok=result.ok, error_code=result.error_code)
+    def record_validation(
+        self,
+        run_id: str,
+        tool_name: str,
+        call_id: str,
+        provenance: Provenance,
+        validation: Mapping[str, Any],
+        result: RuntimeResult | None = None,
+        *,
+        actor: str | None = None,
+        agent_step: int | None = None,
+        fixture_id: str | None = None,
+    ) -> None:
+        fields: dict[str, Any] = {
+            "fixture_id": fixture_id,
+            "agent_step": agent_step,
+            "actor": actor,
+            "tool_name": tool_name,
+            "provenance": provenance.to_dict(),
+            "validation_allowed": bool(validation["allowed"]),
+            "reason": validation.get("reason"),
+        }
+        if result is not None:
+            fields.update({
+                "runtime_status": result.status,
+                "end_stage": result.end_stage,
+                "ok": result.ok,
+                "error_code": result.error_code,
+            })
+        self.emit("validation", run_id, call_id=call_id, **fields)
 
     def record_intent(self, intent: ToolIntent) -> None:
-        self.emit("tool_intent", intent.run_id, call_id=intent.call_id, fixture_id=intent.fixture_id, agent_step=intent.agent_step, actor=intent.actor, tool_name=intent.tool_name, arguments=dict(intent.arguments), provenance=intent.provenance.to_dict(), capability=intent.capability.value, requested_capability=intent.capability.value, action=intent.action, resource=intent.resource)
+        self.emit("tool_intent", intent.run_id, call_id=intent.call_id, fixture_id=intent.fixture_id, agent_step=intent.agent_step, actor=intent.actor, tool_name=intent.tool_name, arguments=dict(intent.arguments), provenance=intent.provenance.to_dict(), capability=intent.capability.value, action=intent.action, resource=intent.resource)
 
     def record_policy(self, intent: ToolIntent, decision: PolicyDecision) -> None:
-        # Policy는 결론을 냈지만 아직 approval record를 만들거나 조회하지 않았다.
-        # 따라서 None 은 이후의 pending / approved / rejected / expired와
-        # 의도적으로 구별된다.
-        self.emit("policy_decision", intent.run_id, call_id=intent.call_id, fixture_id=intent.fixture_id, agent_step=intent.agent_step, actor=intent.actor, tool_name=intent.tool_name, provenance=intent.provenance.to_dict(), requested_capability=intent.capability.value, approval=None, **decision.trace_fields())
+        self.emit("policy_decision", intent.run_id, call_id=intent.call_id, fixture_id=intent.fixture_id, agent_step=intent.agent_step, actor=intent.actor, tool_name=intent.tool_name, provenance=intent.provenance.to_dict(), **decision.trace_fields())
 
     def record_authorization(self, intent: ToolIntent, decision: AuthorizationDecision) -> None:
-        self.emit("authorization_decision", intent.run_id, call_id=intent.call_id, fixture_id=intent.fixture_id, agent_step=intent.agent_step, actor=intent.actor, tool_name=intent.tool_name, provenance=intent.provenance.to_dict(), capability=intent.capability.value, requested_capability=intent.capability.value, action=intent.action, resource=intent.resource, **decision.trace_fields())
+        self.emit("authorization_decision", intent.run_id, call_id=intent.call_id, fixture_id=intent.fixture_id, actor=intent.actor, tool_name=intent.tool_name, action=intent.action, resource=intent.resource, **decision.trace_fields())
 
     def record_approval(self, intent: ToolIntent, approval: ApprovalState) -> None:
-        self.emit("approval", intent.run_id, call_id=intent.call_id, fixture_id=intent.fixture_id, agent_step=intent.agent_step, actor=intent.actor, tool_name=intent.tool_name, provenance=intent.provenance.to_dict(), capability=intent.capability.value, requested_capability=intent.capability.value, action=intent.action, resource=intent.resource, approval=approval.status.value, approval_id=approval.approval_id, required_approver=approval.required_approver)
+        self.emit("approval", intent.run_id, call_id=intent.call_id, fixture_id=intent.fixture_id, actor=intent.actor, tool_name=intent.tool_name, action=intent.action, resource=intent.resource, approval=approval.status.value, approval_id=approval.approval_id, required_approver=approval.required_approver)
 
     def record_result(self, intent: ToolIntent, result: RuntimeResult) -> None:
         security = dict(result.security)
-        approval = security.pop("approval", "not_required")
         result_fields = {
             "ok": result.ok,
             "runtime_status": result.status,
             "end_stage": result.end_stage,
             "error_code": result.error_code,
-            "approval": approval,
             **security,
         }
-        self.emit("runtime_result", intent.run_id, call_id=intent.call_id, fixture_id=intent.fixture_id, agent_step=intent.agent_step, actor=intent.actor, tool_name=intent.tool_name, provenance=intent.provenance.to_dict(), requested_capability=intent.capability.value, result_digest=self.digest(result_fields), **result_fields)
+        self.emit("runtime_result", intent.run_id, call_id=intent.call_id, fixture_id=intent.fixture_id, actor=intent.actor, tool_name=intent.tool_name, result_digest=self.digest(result_fields), **result_fields)
 
     def record_observation(self, run_id: str, envelope: ObservationEnvelope, *, fixture_id: str | None = None) -> None:
 
@@ -128,7 +177,10 @@ class TraceLogger:
 
     def record_experiment_evidence(self, run_id: str, *, fixture_id: str,
                                    seed_digest: str, decision_digest: str,
-                                   result_digest: str) -> None:
+                                   result_digest: str,
+                                   control_plane_before_digest: str | None = None,
+                                   control_plane_after_digest: str | None = None,
+                                   control_plane_mutation: bool | None = None) -> None:
         """fixture 실행의 seed·판단·결과 digest를 마지막 JSONL 이벤트로 남긴다."""
         self.emit(
             "experiment_evidence",
@@ -137,6 +189,9 @@ class TraceLogger:
             seed_digest=seed_digest,
             decision_digest=decision_digest,
             result_digest=result_digest,
+            control_plane_before_digest=control_plane_before_digest,
+            control_plane_after_digest=control_plane_after_digest,
+            control_plane_mutation=control_plane_mutation,
         )
 
 

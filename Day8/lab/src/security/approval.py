@@ -157,3 +157,19 @@ class ApprovalStore:
             self._records[approval_id] = consumed
 
             return consumed, True
+
+    def audit_snapshot(self) -> list[dict[str, str | None]]:
+        """실험 전후 비교를 위한 정렬된 승인 상태 복사본을 반환한다."""
+        with self._lock:
+            return [
+                {
+                    "approval_id": state.approval_id,
+                    "status": state.status.value,
+                    "intent_fingerprint": state.intent_fingerprint,
+                    "requested_actor": state.requested_actor,
+                    "required_approver": state.required_approver,
+                    "resource": state.resource,
+                    "action": state.action,
+                }
+                for _, state in sorted(self._records.items())
+            ]
