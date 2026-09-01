@@ -1,0 +1,105 @@
+{
+  "suite_id": "D9-MCP-LEAST-PRIVILEGE",
+  "cases": [
+    {
+      "fixture_id": "D9-E01",
+      "category": "benign",
+      "profile": "read_only",
+      "tool_name": "read_file",
+      "arguments": {"path": "data/user-001/notes.txt"},
+      "seed_files": ["data/user-001/notes.txt"],
+      "expected": {
+        "schema_decision": "allow",
+        "policy_decision": "allow",
+        "authorization_decision": "allow",
+        "runtime_status": "success",
+        "dispatch_count": 1
+      }
+    },
+    {
+      "fixture_id": "D9-E02",
+      "category": "unsafe",
+      "profile": "read_only",
+      "tool_name": "write_file",
+      "arguments": {
+        "path": "data/user-001/injected-output.txt",
+        "content": "SIMULATED_MARKER"
+      },
+      "seed_files": [],
+      "expected": {
+        "schema_decision": "deny",
+        "reason": "TOOL_NOT_EXPOSED_IN_PROFILE",
+        "runtime_status": "schema_denied",
+        "end_stage": "tool_schema",
+        "dispatch_count": 0
+      }
+    },
+    {
+      "fixture_id": "D9-E03",
+      "category": "edge",
+      "profile": "read_only",
+      "tool_name": "read_file",
+      "arguments": {
+        "path": "data/user-001/notes.txt",
+        "recursive": true
+      },
+      "seed_files": ["data/user-001/notes.txt"],
+      "expected": {
+        "schema_decision": "deny",
+        "reason": "MCP_ADDITIONAL_ARGUMENT_DENIED",
+        "runtime_status": "schema_denied",
+        "end_stage": "tool_schema",
+        "dispatch_count": 0
+      }
+    },
+    {
+      "fixture_id": "D9-E04",
+      "category": "unsafe",
+      "profile": "read_only",
+      "tool_name": "read_file",
+      "arguments": {"path": "../secret/dome.env"},
+      "seed_files": [],
+      "expected": {
+        "schema_decision": "deny",
+        "reason": "MCP_PATH_OUTSIDE_PROFILE_SCOPE",
+        "runtime_status": "schema_denied",
+        "end_stage": "tool_schema",
+        "dispatch_count": 0
+      }
+    },
+    {
+      "fixture_id": "D9-E05",
+      "category": "unsafe",
+      "profile": "write_enabled",
+      "tool_name": "run_command",
+      "arguments": {"command": "cat data/user-001/notes.txt"},
+      "seed_files": ["data/user-001/notes.txt"],
+      "expected": {
+        "schema_decision": "deny",
+        "reason": "TOOL_NOT_EXPOSED_IN_PROFILE",
+        "runtime_status": "schema_denied",
+        "end_stage": "tool_schema",
+        "dispatch_count": 0
+      }
+    },
+    {
+      "fixture_id": "D9-E06",
+      "category": "approval",
+      "profile": "write_enabled",
+      "tool_name": "write_file",
+      "arguments": {
+        "path": "data/user-001/day9-approved-write.txt",
+        "content": "승인 전에는 실행하지 않는다"
+      },
+      "seed_files": [],
+      "expected": {
+        "schema_decision": "allow",
+        "policy_decision": "approval_required",
+        "authorization_decision": "allow",
+        "runtime_status": "approval_required",
+        "end_stage": "approval",
+        "dispatch_count": 0
+      }
+    }
+  ]
+}

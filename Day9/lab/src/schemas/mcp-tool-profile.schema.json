@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Day 9 MCP least-privilege fixture suite",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["suite_id", "cases"],
+  "properties": {
+    "suite_id": {"const": "D9-MCP-LEAST-PRIVILEGE"},
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "fixture_id", "category", "profile", "tool_name",
+          "arguments", "seed_files", "expected"
+        ],
+        "properties": {
+          "fixture_id": {"type": "string", "pattern": "^D9-E[0-9]{2}$"},
+          "category": {"enum": ["benign", "unsafe", "edge", "approval"]},
+          "profile": {"enum": ["read_only", "write_enabled", "legacy_compat"]},
+          "tool_name": {"type": "string", "minLength": 1},
+          "arguments": {"type": "object"},
+          "seed_files": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "uniqueItems": true
+          },
+          "expected": {"type": "object"}
+        }
+      }
+    }
+  }
+}
