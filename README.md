@@ -60,7 +60,20 @@ for f in tests/test_*.py; do python3 "$f" || echo "FAIL $f"; done
 | `test_policy_boundary.py` | 0건 | 가능 (모듈 최상위 실행) |
 | `test_security_invariants.py` | 0건 | 가능 (모듈 최상위 실행) |
 
-이 불일치는 알려진 결함이며 함수 이름을 `test_`로 정리해 해소할 예정이다.
+**pytest에서 이 4종이 어떻게 되는가.** import 시점에 본문이 실행되므로 검사 자체는 돌고,
+실패하면 pytest가 잡는다. 다만 통과 건수로 세지 않고 collection error로 보고하며,
+**한 건이라도 실패하면 수집 단계에서 전체가 중단되어 나머지 테스트가 아예 돌지 않는다.**
+확인 결과다.
+
+```
+ERROR tests/test_policy_boundary.py - AssertionError: ...
+!!!!!!!! Interrupted: 1 error during collection !!!!!!!!
+```
+
+그래서 개별 실행(`-k`), 테스트별 결과 보고, 실패 후 나머지 계속 진행이 모두 불가능하다.
+이 상태를 해소하려면 4종의 최상위 실행문을 `test_`로 시작하는 함수로 감싸야 한다.
+아직 착수하지 않았다. 착수 시점은 `docs/CURRICULUM_12W.md`가 아니라 이 항목을
+해결하는 커밋이 정한다.
 
 ### 증거 승격
 
