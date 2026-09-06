@@ -1,4 +1,4 @@
-"""Day 8 보안 경계의 우회 경로를 고정하는 회귀 검사.
+"""Day 9 변경 뒤에도 기존 보안 경계가 우회되지 않는지 확인하는 회귀 검사.
 
 각 동적 검사는 독립 Runtime·sandbox·trace를 사용하며 seed, 평가, 최종
 증거 요약을 남긴다. 이 파일은 외부 API나 실제 서비스에 연결하지 않는다.
@@ -58,7 +58,7 @@ def assert_no_legacy_authorizer() -> None:
 def check_policy_deny_short_circuit() -> dict:
     """Policy DENY 뒤에는 인가·승인·실행이 모두 호출되지 않아야 한다."""
     experiment = make_experiment_runtime(
-        "D8-I01", trace_path=TRACE_BASE, seed_files=()
+        "D9-E07", trace_path=TRACE_BASE, seed_files=()
     )
     runtime = experiment.runtime
     with (
@@ -70,11 +70,11 @@ def check_policy_deny_short_circuit() -> dict:
         result = execute_tool(
             "write_file",
             {"path": "data/user-001/policy-denied.txt", "content": "blocked"},
-            call_id="call-d8-i01-policy-deny",
+            call_id="call-d9-e07-policy-deny",
             run_id=experiment.run_id,
             actor=ACTOR,
             provenance=repository_provenance("synthetic-untrusted-input"),
-            fixture_id="D8-I01",
+            fixture_id="D9-E07",
             runtime=runtime,
         )
     assert result["end_stage"] == "policy"
@@ -96,7 +96,7 @@ def check_policy_deny_short_circuit() -> dict:
 def check_authorization_deny_short_circuit() -> dict:
     """AuthZ DENY 뒤에는 승인 번호나 실제 실행이 없어야 한다."""
     experiment = make_experiment_runtime(
-        "D8-I02",
+        "D9-E08",
         trace_path=TRACE_BASE,
         seed_files=("data/user-002/private.txt",),
     )
@@ -109,11 +109,11 @@ def check_authorization_deny_short_circuit() -> dict:
         result = execute_tool(
             "read_file",
             {"path": "data/user-002/private.txt"},
-            call_id="call-d8-i02-authz-deny",
+            call_id="call-d9-e08-authz-deny",
             run_id=experiment.run_id,
             actor=ACTOR,
             provenance=direct_user_provenance("fixture-harness"),
-            fixture_id="D8-I02",
+            fixture_id="D9-E08",
             runtime=runtime,
         )
     assert result["end_stage"] == "authorization"
@@ -136,7 +136,7 @@ def check_authorization_deny_short_circuit() -> dict:
 def check_approval_consume_and_replay() -> dict:
     """승인된 동일 intent는 consume 뒤 한 번만 실행되어야 한다."""
     experiment = make_experiment_runtime(
-        "D8-I03", trace_path=TRACE_BASE, seed_files=()
+        "D9-E09", trace_path=TRACE_BASE, seed_files=()
     )
     runtime = experiment.runtime
     arguments = {
@@ -148,11 +148,11 @@ def check_approval_consume_and_replay() -> dict:
         pending = execute_tool(
             "write_file",
             arguments,
-            call_id="call-d8-i03-pending",
+            call_id="call-d9-e09-pending",
             run_id=experiment.run_id,
             actor=ACTOR,
             provenance=direct_user_provenance("fixture-harness"),
-            fixture_id="D8-I03",
+            fixture_id="D9-E09",
             runtime=runtime,
         )
     assert pending["status"] == "approval_required"
@@ -185,12 +185,12 @@ def check_approval_consume_and_replay() -> dict:
         success = execute_tool(
             "write_file",
             arguments,
-            call_id="call-d8-i03-approved",
+            call_id="call-d9-e09-approved",
             run_id=experiment.run_id,
             actor=ACTOR,
             provenance=direct_user_provenance("fixture-harness"),
             approval_id=approval_id,
-            fixture_id="D8-I03",
+            fixture_id="D9-E09",
             runtime=runtime,
         )
     assert success["ok"] is True
@@ -203,12 +203,12 @@ def check_approval_consume_and_replay() -> dict:
         replay = execute_tool(
             "write_file",
             arguments,
-            call_id="call-d8-i03-replay",
+            call_id="call-d9-e09-replay",
             run_id=experiment.run_id,
             actor=ACTOR,
             provenance=direct_user_provenance("fixture-harness"),
             approval_id=approval_id,
-            fixture_id="D8-I03",
+            fixture_id="D9-E09",
             runtime=runtime,
         )
     assert replay["ok"] is False
@@ -239,10 +239,10 @@ assert_no_direct_dispatch_call()
 assert_no_legacy_authorizer()
 
 results = {
-    "D8-I01": check_policy_deny_short_circuit(),
-    "D8-I02": check_authorization_deny_short_circuit(),
-    "D8-I03": check_approval_consume_and_replay(),
+    "D9-E07": check_policy_deny_short_circuit(),
+    "D9-E08": check_authorization_deny_short_circuit(),
+    "D9-E09": check_approval_consume_and_replay(),
 }
 
 print(json.dumps(results, ensure_ascii=False, indent=2))
-print("Day 8 security invariant tests: PASS")
+print("Day 9 security invariant tests: PASS")

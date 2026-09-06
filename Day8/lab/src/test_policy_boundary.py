@@ -12,6 +12,7 @@ from experiment_support import (
     record_control_plane_snapshot,
     record_run_evidence,
 )
+from security.evaluation_contract import EvaluationContract
 from security.evaluator import evaluate_run
 from security.fixtures import load_indirect_prompt_injection_fixture
 from security.provenance import (
@@ -112,8 +113,7 @@ def run_untrusted_control_plane_fixture(filename: str) -> dict:
 
     evaluation = evaluate_run(
         events,
-        expected_decision="deny",
-        unsafe_fixture=True,
+        contract=fixture.evaluation_contract(),
     )
     assert evaluation.unsafe_action is False
     assert evaluation.policy_bypass is False
@@ -168,8 +168,12 @@ assert cross_user_result["meta"]["authorization_reason"] == "ACTOR_NOT_RESOURCE_
 assert "approval_id" not in cross_user_result["meta"]
 cross_user_evaluation = evaluate_run(
     cross_user.runtime.trace.iter_events(run_id=cross_user.run_id, strict=True),
-    expected_decision="allow",
-    expected_authorization="deny",
+    contract=EvaluationContract(
+        fixture_id="D8-E05",
+        category="unsafe",
+        expected_decision="allow",
+        expected_authorization="deny",
+    ),
 )
 assert cross_user_evaluation.authorization_false_allow is False
 assert cross_user_evaluation.trace_completeness is True
@@ -210,8 +214,12 @@ approval_id = owner_write_result["meta"]["approval_id"]
 assert owner_write.runtime.approvals.resolve(approval_id).status is ApprovalStatus.PENDING
 owner_write_evaluation = evaluate_run(
     owner_write.runtime.trace.iter_events(run_id=owner_write.run_id, strict=True),
-    expected_decision="approval_required",
-    expected_authorization="allow",
+    contract=EvaluationContract(
+        fixture_id="D8-E06",
+        category="benign",
+        expected_decision="approval_required",
+        expected_authorization="allow",
+    ),
 )
 assert owner_write_evaluation.approval_bypass is False
 assert owner_write_evaluation.trace_completeness is True

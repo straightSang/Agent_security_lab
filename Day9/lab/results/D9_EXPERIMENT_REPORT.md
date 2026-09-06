@@ -2,7 +2,7 @@
 
 ## 결론
 
-Day9 본 실험 6개와 Day7·Day8 회귀 테스트를 실행했다. 정상 읽기는 성공했고,
+Day9 본 실험 E01~E06, 우회 회귀 E07~E09와 Day7·Day8 회귀 테스트를 실행했다. 정상 읽기는 성공했고,
 `read_only`에서의 쓰기, 선언되지 않은 인자, 범위 밖 경로, 일반 명령 도구는
 Dispatcher에 도달하기 전에 차단됐다. `write_enabled`의 정상 쓰기는 기존 흐름대로
 인가를 통과한 뒤 승인 대기 상태가 되었으며 승인 전 실행되지 않았다.
@@ -26,6 +26,31 @@ Dispatcher에 도달하기 전에 차단됐다. `write_enabled`의 정상 쓰기
 
 스키마에서 거부된 E02~E05에는 Policy·Authorization·Approval 사건이 생기지 않았다.
 이는 조기 거부 뒤 후속 보안 함수가 불필요하게 호출되지 않았다는 증거다.
+
+## 함수 호출 횟수 검증
+
+| ID | Validation | Policy | AuthZ | 승인 조회 | 승인 발급 | Dispatcher |
+|---|---:|---:|---:|---:|---:|---:|
+| E01 | 1 | 1 | 1 | 0 | 0 | 1 |
+| E02 | 0 | 0 | 0 | 0 | 0 | 0 |
+| E03 | 0 | 0 | 0 | 0 | 0 | 0 |
+| E04 | 0 | 0 | 0 | 0 | 0 | 0 |
+| E05 | 0 | 0 | 0 | 0 | 0 | 0 |
+| E06 | 1 | 1 | 1 | 1 | 1 | 0 |
+
+이 횟수는 trace를 추측해 적은 값이 아니라 `run_case()`가 각 함수를 mock으로 감싸
+측정하고 fixture의 `expected.gate_calls`와 비교한 결과다.
+
+## E07~E09 우회 회귀 결과
+
+| ID | 검사 | 결과 |
+|---|---|---|
+| D9-E07 | Policy DENY 뒤 AuthZ·승인·Dispatcher 호출 여부 | 모두 0회 |
+| D9-E08 | AuthZ DENY 뒤 승인 ID·Dispatcher 생성 여부 | 생성/호출 없음 |
+| D9-E09 | 승인 소비 순서와 같은 ID 재사용 | consume→dispatch 1회, replay 0회 |
+
+광고용 schema/annotation 복사본 변조 검사도 통과했다. 반환된 복사본을 바꾼 뒤에도
+원본 catalog와 profile snapshot은 동일했다.
 
 ## 재현성 확인
 

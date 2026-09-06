@@ -148,3 +148,17 @@ Day 8 D8-E01~E06: 아직 실행 전
 - local fixture는 실제 MCP/email connector가 아니다.
 - in-memory policy/approval 상태는 운영 환경의 영속화·동시성 통제를 대체하지 않는다.
 - Dispatcher 단일 경계는 OS/container sandbox를 대체하지 않는다.
+
+## 추가 수정 — fixture 평가 계약 자동 연결
+
+| 파일/함수 | 수정 | 이유 |
+|---|---|---|
+| `security/evaluation_contract.py/EvaluationContract` | 신규 | fixture 분류와 예상 Policy/AuthZ 값을 한 객체에서 검증 |
+| `security/fixtures.py/evaluation_contract()` | 신규 | JSON fixture에서 평가 계약을 자동 생성 |
+| `security/evaluator.py/evaluate_run()` | `contract`를 받도록 변경 | `unsafe_fixture=True`와 예상값의 중복 수동 입력 제거 |
+| `test_indirect_injection.py` | fixture 계약 전달 | JSON fixture를 평가 정답의 단일 기준으로 사용 |
+| `test_policy_boundary.py` | fixture 또는 명시적 계약 전달 | 파일·동적 fixture를 같은 방식으로 평가 |
+| `test_security_invariants.py` | 명시적 계약 전달 | JSON이 없는 E07~E09도 동일한 평가 입력 형식 사용 |
+
+평가 계약은 정답표이므로 Runtime·Policy에는 전달하지 않는다. 변경 후 Day7 간접
+주입 회귀, Day8 정책 경계, Day8 보안 불변조건 테스트를 실행했고 모두 PASS했다.

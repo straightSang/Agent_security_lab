@@ -1,0 +1,20 @@
+# 파이썬
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# 가상환경
+venv/
+.venv/
+.env
+
+# 실험 trace — 테스트 산출물은 폐기 가능해야 한다.
+# 보고서가 인용하는 run만 evidence/로 승격해 커밋한다.
+traces/
+**/traces/
+
+# OS·오피스 임시 파일
+~$*
+.DS_Store
+Thumbs.db

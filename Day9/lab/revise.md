@@ -25,16 +25,18 @@
 |---|---|---|
 | `src/security/tool_schema.py` | MCP catalog, 3개 profile, schema validator | 도구 정의·노출·검증의 단일 기준 필요 |
 | `src/security/types.py` | `ToolSchemaDecision` | schema 단계의 명시적 계약 필요 |
-| `src/Agent.py` | hard-coded TOOLS 제거, catalog adapter 사용 | MCP/OpenAI 정의 중복 방지 |
+| `src/Agent.py` | hard-coded TOOLS 제거, catalog adapter 사용, 기본 Runtime을 read_only로 변경 | MCP/OpenAI 정의 중복 방지와 최소권한 기본값 |
 | `src/Agent_v0.5.py` | `MCP_TOOL_PROFILE`, 기본 read_only | 기존 run_agent 흐름을 유지하며 최소권한 적용 |
 | `src/runtime.py` | 기존 Validation 앞 schema gate | 미노출 권한을 Policy 이전에 차단 |
 | `src/trace_logger.py` | schema decision/early result 사건 | ToolIntent 전 종료도 추적 |
 | `src/trace_reader.py` | schema 사건 한글 요약 | 사람이 trace를 읽기 쉽게 함 |
 | `src/security/evaluator.py` | schema bypass/false block | 새 gate의 효과·오탐 평가 |
 | `src/experiment_support.py` | profile 주입, snapshot/digest 포함 | fixture별 동일 환경 replay |
-| `src/fixtures/mcp_least_privilege.json` | D9-E01~E06 | 입력과 expected 고정 |
+| `src/fixtures/mcp_least_privilege.json` | D9-E01~E06와 gate별 기대 호출 횟수 | 입력·결과뿐 아니라 단축 종료 순서까지 고정 |
 | `src/schemas/mcp-tool-profile.schema.json` | fixture 계약 | 잘못된 실험 데이터 구별 |
-| `src/test_mcp_tool_schema.py` | 본 실험 | 정상 utility·공격 표면 감소 검증 |
+| `src/test_mcp_tool_schema.py/run_case()` | E01~E06 본 실험 | 수행·기록·평가 및 gate 호출 횟수 검증 |
+| `src/test_mcp_tool_schema.py/check_advertised_schema_isolation()` | 깊은 복사 격리 검사 | 비신뢰 schema/annotation 복사본이 원본 catalog를 바꾸지 못하게 함 |
+| `src/test_security_invariants.py` | D9-E07~E09로 사례명 정리 | Policy/AuthZ/Approval/Dispatcher 우회 회귀를 Day9 사례표에 연결 |
 | 기존 indirect fixture 3개 | write path를 actor data 경로로 수정 | Day9 path schema 통과 뒤 기존 Policy 방어를 계속 회귀하기 위해 |
 
 ## 기존 실행 흐름에서 유지한 부분
@@ -53,7 +55,11 @@
 - 모든 작업에 같은 6개 도구를 노출하던 구조를 profile별 4/5/6개로 분리했다.
 - `run_command`는 삭제하지 않고 legacy profile로 격리했다.
 - Agent interactive 기본 profile을 read_only로 바꿨다.
+- 공용 `Agent.py/TOOLS`와 `build_runtime()` 기본값도 read_only로 바꿨다. 쓰기
+  fixture는 `tool_profile=WRITE_ENABLED_PROFILE`을 명시한다.
 - schema DENY는 Validation/ToolIntent/Policy 전에 종료한다.
+- `tools_for_mcp()`는 얕은 복사 대신 깊은 복사를 반환한다. 호출자가 중첩 schema나
+  annotation을 바꾸더라도 원본 catalog와 Runtime 판단은 바뀌지 않는다.
 - evaluator가 마지막 Policy가 아니라 마지막 RuntimeResult의 call_id를 기준으로 사건을
   연결하도록 수정했다. schema 조기 종료에는 Policy 사건이 없기 때문이다.
 
@@ -65,6 +71,8 @@
 - profile이 도구 목록을 재사용하므로 read/write Agent별 catalog 복사가 없다.
 - Runtime schema validator 하나가 모델·fixture·API proposal을 동일하게 검사한다.
 - 조기 차단으로 불필요한 path resolution, Policy, AuthZ, Approval 호출을 피한다.
+- fixture의 `gate_calls`와 mock 계측을 비교해, 최종 결과만으로는 보이지 않는 불필요한
+  내부 함수 호출까지 검출한다.
 
 반대로 JSON Schema 전체 엔진을 직접 구현하지 않았다. 현재 실험에 필요한 작은
 부분집합만 사용해 복잡도를 제한했다. 운영 MCP server에서는 검증된 JSON Schema

@@ -27,7 +27,31 @@
             "items": {"type": "string", "minLength": 1},
             "uniqueItems": true
           },
-          "expected": {"type": "object"}
+          "expected": {
+            "type": "object",
+            "required": ["schema_decision", "runtime_status", "dispatch_count", "gate_calls"],
+            "properties": {
+              "schema_decision": {"enum": ["allow", "deny"]},
+              "reason": {"type": "string"},
+              "policy_decision": {"enum": ["allow", "deny", "approval_required"]},
+              "authorization_decision": {"enum": ["allow", "deny"]},
+              "runtime_status": {"type": "string"},
+              "end_stage": {"type": "string"},
+              "dispatch_count": {"type": "integer", "minimum": 0},
+              "gate_calls": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["validation", "policy", "authorization", "approval_resolve", "approval_request"],
+                "properties": {
+                  "validation": {"type": "integer", "minimum": 0},
+                  "policy": {"type": "integer", "minimum": 0},
+                  "authorization": {"type": "integer", "minimum": 0},
+                  "approval_resolve": {"type": "integer", "minimum": 0},
+                  "approval_request": {"type": "integer", "minimum": 0}
+                }
+              }
+            }
+          }
         }
       }
     }

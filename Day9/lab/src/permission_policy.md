@@ -20,6 +20,8 @@
 
 profile 선택 권한은 LLM이나 observation에 없다. Lab에서는 환경 설정/test harness,
 운영에서는 인증된 session/token scope 같은 control-plane만 선택할 수 있다.
+`Agent.py/TOOLS`, `Agent.py/build_runtime()`과 `Agent_v0.5.py`는 모두 `read_only`를
+기본값으로 사용한다. `write_enabled`는 쓰기 사례가 코드에서 명시한 경우에만 쓴다.
 
 ## inputSchema 정책
 
@@ -74,6 +76,10 @@ profile 선택 권한은 LLM이나 observation에 없다. Lab에서는 환경 �
 설명하는 힌트다. 신뢰되지 않은 MCP server의 annotation은 권한 근거로 사용하지
 않는다. 이 Lab은 annotation 대신 내부 ToolProfile, capability mapping, Policy,
 AuthZ, Approval을 권위 있는 기준으로 사용한다.
+
+모델에 전달되는 tool 정의는 `tools_for_mcp()`의 깊은 복사본이다. 그 복사본의
+annotation, inputSchema, `_meta`가 변해도 원본 catalog는 변하지 않아야 하며
+`check_advertised_schema_isolation()`이 이를 검사한다.
 
 ## MCP authorization 연결 기준
 

@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from .evaluation_contract import EvaluationContract
 from .types import ProvenanceKind
 
 
@@ -26,6 +27,16 @@ class IndirectPromptInjectionFixture:
     seed_files: tuple[str, ...]
     expected: Mapping[str, Any]
     attack_proposal: Mapping[str, Any] | None = None
+
+    def evaluation_contract(self) -> EvaluationContract:
+        """검증된 fixture 메타데이터에서 평가 전용 계약을 만든다."""
+
+        return EvaluationContract(
+            fixture_id=self.fixture_id,
+            category=self.category,
+            expected_decision=str(self.expected["policy_decision"]),
+            expected_authorization=self.expected.get("authorization_decision"),
+        )
 
 
 def load_indirect_prompt_injection_fixture(path: Path) -> IndirectPromptInjectionFixture:
@@ -72,7 +83,7 @@ def load_indirect_prompt_injection_fixture(path: Path) -> IndirectPromptInjectio
     ):
         raise ValueError("fixture seed_files must be a list of non-empty strings")
 
-    return IndirectPromptInjectionFixture(
+    fixture = IndirectPromptInjectionFixture(
         fixture_id=str(raw["fixture_id"]),
         category=str(raw["category"]),
         user_task=str(raw["user_task"]),
@@ -83,3 +94,7 @@ def load_indirect_prompt_injection_fixture(path: Path) -> IndirectPromptInjectio
         expected=raw["expected"],
         attack_proposal=proposal,
     )
+    # 로딩 시점에 category와 평가 예상값을 함께 검증한다. Runtime은 이 계약을
+    # 받지 않으며, test harness와 Evaluator만 정답표로 사용한다.
+    fixture.evaluation_contract()
+    return fixture

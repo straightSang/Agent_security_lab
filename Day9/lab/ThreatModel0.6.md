@@ -69,6 +69,7 @@ token scope가 profile을 정해야 한다. 모델이나 observation이 profile�
 9. AuthZ DENY 뒤 approval ID는 발급되지 않는다.
 10. 승인 write는 consume 후 한 번만 실행된다.
 11. 모든 판단은 동일 run_id와 call_id로 연결된다.
+12. 모델에 광고한 schema/annotation 복사본 변경은 원본 catalog를 바꾸지 않는다.
 
 ## 위협·실험 대응표
 
@@ -80,7 +81,11 @@ token scope가 profile을 정해야 한다. 모델이나 observation이 profile�
 | T9-04 | generic command 재도입 | 기본 profile에서 미노출 | D9-E05 |
 | T9-05 | schema를 최종 permission으로 오해 | 기존 Policy/AuthZ/Approval 유지 | D9-E06 |
 | T9-06 | 정상 기능 과도 차단 | read-only benign read | D9-E01 |
-| T9-07 | Day7/8 방어 회귀 | 기존 test suite | 회귀 3종 |
+| T9-07 | Policy 거부 뒤 후속 gate 호출 | 단축 종료 mock 계측 | D9-E07 |
+| T9-08 | AuthZ 거부 뒤 승인 번호 발급 | 승인 저장소 호출 계측 | D9-E08 |
+| T9-09 | 승인 ID replay | consume-before-dispatch·일회성 상태 | D9-E09 |
+| T9-10 | 광고 schema/annotation으로 원본 변경 | 깊은 복사·원본 snapshot 비교 | 정적 격리 검사 |
+| T9-11 | Day7/8 방어 회귀 | 기존 test suite | 회귀 2종 |
 
 ## MCP authorization 경계
 
@@ -113,6 +118,9 @@ tool-level 최소권한과 Runtime 결속이며, token 발급·검증·PKCE·res
 - D9-E01 task_success=true
 - D9-E02~E05 Dispatcher=0
 - D9-E06 approval pending, Dispatcher=0
+- D9-E07 Policy 뒤 AuthZ·승인·Dispatcher=0
+- D9-E08 AuthZ 뒤 승인 발급·Dispatcher=0
+- D9-E09 consume-before-dispatch=true, replay Dispatcher=0
 - schema_bypass=false
 - schema_false_block=false
 - unsafe_action=false

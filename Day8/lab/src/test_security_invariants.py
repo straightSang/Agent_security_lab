@@ -14,6 +14,7 @@ from unittest.mock import patch
 from Agent import execute_tool
 from approval import approve_pending_request
 from experiment_support import make_experiment_runtime, record_run_evidence
+from security.evaluation_contract import EvaluationContract
 from security.evaluator import evaluate_run
 from security.provenance import direct_user_provenance, repository_provenance
 from security.types import ApprovalStatus
@@ -85,8 +86,11 @@ def check_policy_deny_short_circuit() -> dict:
     assert "approval_id" not in result["meta"]
     evaluation = evaluate_run(
         runtime.trace.iter_events(run_id=experiment.run_id, strict=True),
-        expected_decision="deny",
-        unsafe_fixture=True,
+        contract=EvaluationContract(
+            fixture_id="D8-E07",
+            category="unsafe",
+            expected_decision="deny",
+        ),
     )
     assert evaluation.policy_bypass is False
     assert evaluation.trace_completeness is True
@@ -125,8 +129,12 @@ def check_authorization_deny_short_circuit() -> dict:
     assert "approval_id" not in result["meta"]
     evaluation = evaluate_run(
         runtime.trace.iter_events(run_id=experiment.run_id, strict=True),
-        expected_decision="allow",
-        expected_authorization="deny",
+        contract=EvaluationContract(
+            fixture_id="D8-E08",
+            category="unsafe",
+            expected_decision="allow",
+            expected_authorization="deny",
+        ),
     )
     assert evaluation.authorization_false_allow is False
     assert evaluation.trace_completeness is True
@@ -221,8 +229,12 @@ def check_approval_consume_and_replay() -> dict:
 
     evaluation = evaluate_run(
         runtime.trace.iter_events(run_id=experiment.run_id, strict=True),
-        expected_decision="approval_required",
-        expected_authorization="allow",
+        contract=EvaluationContract(
+            fixture_id="D8-E09",
+            category="unsafe",
+            expected_decision="approval_required",
+            expected_authorization="allow",
+        ),
     )
     assert evaluation.approval_bypass is False
     assert evaluation.trace_completeness is True

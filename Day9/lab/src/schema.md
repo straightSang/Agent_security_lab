@@ -152,6 +152,9 @@ cases[]
   arguments
   seed_files
   expected
+    schema_decision, runtime_status, dispatch_count
+    gate_calls(validation, policy, authorization,
+               approval_resolve, approval_request)
 ```
 
 fixture의 profile과 expected는 test harness가 실험을 구성하고 검사하는 값이다.
@@ -170,6 +173,8 @@ tools_for_openai(profile)
 ```
 
 두 adapter는 같은 catalog를 사용하므로 schema를 두 군데 수정하는 오류를 줄인다.
+`tools_for_mcp()`는 중첩 dict까지 깊게 복사한다. 따라서 모델/클라이언트가 받은
+definition을 수정해도 `MCP_TOOL_CATALOG`와 schema digest가 변하지 않는다.
 
 ## schema digest와 evidence digest
 

@@ -6,6 +6,7 @@ MCP ``inputSchema``는 모델에게 보여 주는 설명인 동시에 서버가 
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 from hashlib import sha256
 import json
@@ -202,8 +203,13 @@ def profile_snapshot(profile: ToolProfile) -> dict[str, Any]:
 
 
 def tools_for_mcp(profile: ToolProfile) -> list[dict[str, Any]]:
-    """MCP server의 ``tools/list``에 해당하는 정의를 반환한다."""
-    return [dict(MCP_TOOL_CATALOG[name]) for name in profile.exposed_tools]
+    """MCP server의 ``tools/list``에 해당하는 독립된 정의를 반환한다.
+
+    깊은 복사를 사용하는 이유는 호출자가 반환된 description, inputSchema,
+    annotations를 바꾸더라도 Runtime이 신뢰하는 원본 catalog가 변하지 않게 하기
+    위해서다. 특히 annotations는 힌트일 뿐 권한을 부여하지 않는다.
+    """
+    return [deepcopy(MCP_TOOL_CATALOG[name]) for name in profile.exposed_tools]
 
 
 def tools_for_openai(profile: ToolProfile) -> list[dict[str, Any]]:

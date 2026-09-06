@@ -33,7 +33,7 @@ MODEL = os.getenv("MODEL", "gpt-5.5")
 ACTIVE_TOOL_PROFILE = get_tool_profile(
     os.getenv("MCP_TOOL_PROFILE", "read_only")
 )
-DAY5_RUNTIME = build_runtime(tool_profile=ACTIVE_TOOL_PROFILE)
+DAY9_RUNTIME = build_runtime(tool_profile=ACTIVE_TOOL_PROFILE)
 TOOLS = tools_for_openai(ACTIVE_TOOL_PROFILE)
 _APPROVED_APPROVAL_IDS: dict[str, str] = {}
 _PENDING_APPROVAL_RUNS: dict[str, str] = {}
@@ -67,13 +67,13 @@ class AgentEventLogger:
         call_id = record.pop("call_id", None)
         if call_id is None and isinstance(record.get("data"), dict):
             call_id = record["data"].get("call_id")
-        DAY5_RUNTIME.trace.emit(event, self.run_id, call_id=call_id, **record)
+        DAY9_RUNTIME.trace.emit(event, self.run_id, call_id=call_id, **record)
 
 def approve_pending_request(approval_id: str, *, authenticated_approver: str) -> dict[str, Any]:
     """승인 record만 approved로 바꾼다. dispatcher는 여기서 호출하지 않는다."""
 
     control = approve_control(
-        DAY5_RUNTIME.approvals,
+        DAY9_RUNTIME.approvals,
         approval_id,
         authenticated_approver=authenticated_approver,
     )
@@ -82,7 +82,7 @@ def approve_pending_request(approval_id: str, *, authenticated_approver: str) ->
 
     run_id = _PENDING_APPROVAL_RUNS.get(approval_id, f"approval-control-{approval_id}")
 
-    DAY5_RUNTIME.trace.emit(
+    DAY9_RUNTIME.trace.emit(
         "approval_state_changed",
         run_id,
         actor=authenticated_approver,
@@ -115,7 +115,7 @@ def execute_proposal(
     """검증된 LLM function proposal을 유일한 Runtime 경계로 보낸다."""
     active_run = run_id or f"run_{uuid.uuid4().hex}"
 
-    result = DAY5_RUNTIME.execute_tool(
+    result = DAY9_RUNTIME.execute_tool(
         tool_name=str(proposal["name"]),
         arguments=dict(proposal["arguments"]),
         call_id=str(proposal.get("call_id") or f"call_{uuid.uuid4().hex}"),
@@ -246,7 +246,7 @@ def run_agent(
                     content=str(runtime_result["data"]),
                     parent_call_id=item.call_id,
                 )
-                DAY5_RUNTIME.trace.record_observation(run_id, envelope)
+                DAY9_RUNTIME.trace.record_observation(run_id, envelope)
                 new_observations.append(envelope)
 
             # 3. LLM에는 기존 결과 adapter만 전달한다.
@@ -299,7 +299,11 @@ run_responses_agent = run_agent
 
 
 if __name__ == "__main__":
-    print("Day 6 Lab. /approve <approval_id> [authenticated_approver], /quit")
+    print(
+        "Day 9 Lab "
+        f"(MCP tool profile={ACTIVE_TOOL_PROFILE.name}). "
+        "/approve <approval_id> [authenticated_approver], /quit"
+    )
 
     while True:
         line = input(f"{LAB_ACTOR}> ").strip()

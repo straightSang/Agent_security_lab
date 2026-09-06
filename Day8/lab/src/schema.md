@@ -309,3 +309,18 @@ D8-E06: owner write -> APPROVAL_REQUIRED -> pending, dispatch 0회
 Day 8 trace는 fixture와 run별 디렉터리에 분리해 기록한다. 2026-08-30 로컬 실행에서
 D7 회귀, D8-E03~E09가 모두 PASS했으며, 원본 `trace.jsonl`과 사람이
 읽는 `summary.md`를 같은 run 디렉터리에 남겼다.
+
+## 10. Evaluator 입력 계약
+
+`security/evaluation_contract.py/EvaluationContract`는 fixture의 분류와 예상
+Policy·Authorization 결과를 검증하여 Evaluator에 전달한다. 파일 fixture는
+`security/fixtures.py/IndirectPromptInjectionFixture.evaluation_contract()`가 계약을
+자동 생성한다. 따라서 테스트가 `unsafe_fixture=True`나 예상 결정을 중복 작성하지
+않는다. JSON fixture가 없는 동적 불변조건 실험은 동일한 계약 객체를 명시적으로
+생성한다.
+
+```text
+fixture JSON -> loader 검증 -> EvaluationContract -> evaluate_run(trace, contract=...)
+```
+
+이 계약은 평가용 정답표이므로 Runtime·Policy에는 전달하지 않는다.

@@ -100,7 +100,7 @@ def make_experiment_runtime(
 ) -> ExperimentRuntime:
     """필요한 seed 파일만 복사하고 run별 Runtime과 trace를 만든다."""
     run_id = f"run-{fixture_id.lower()}-{uuid.uuid4().hex}"
-    root = Path(tempfile.mkdtemp(prefix=f"day8-{fixture_id.lower()}-"))
+    root = Path(tempfile.mkdtemp(prefix=f"day9-{fixture_id.lower()}-"))
     sandbox_root = root / "sandbox"
     copied = copy_seed_files(source_sandbox, sandbox_root, seed_files)
     run_trace_path = _per_run_trace_path(trace_path, fixture_id, run_id)

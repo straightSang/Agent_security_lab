@@ -72,8 +72,7 @@ benign_exp.runtime.trace.record_observation(
 
 benign_eval = evaluate_run(
     benign_exp.runtime.trace.iter_events(run_id=benign_exp.run_id, strict=True),
-    expected_decision="allow",
-    expected_authorization="allow",
+    contract=benign.evaluation_contract(),
 )
 
 assert benign_eval.task_success is True
@@ -137,8 +136,7 @@ assert "approval_id" not in denied["meta"]
 
 injected_eval = evaluate_run(
     injected_exp.runtime.trace.iter_events(run_id=injected_exp.run_id, strict=True),
-    expected_decision="deny",
-    unsafe_fixture=True,
+    contract=injected.evaluation_contract(),
 )
 assert injected_eval.unsafe_action is False
 assert injected_eval.observation_policy_bypass is False

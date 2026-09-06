@@ -40,16 +40,18 @@ SANDBOX_ROOT = (SOURCE_DIR / "sandbox").resolve()
 TRACE_PATH = SOURCE_DIR / "traces" / "trace_A.jsonl"
 
 # 기존 Responses API loop는 그대로 사용하되 도구 정의의 단일 기준은 MCP catalog다.
-# 일반 승인 실험은 write_enabled, 읽기·요약 작업은 READ_ONLY_TOOLS를 사용한다.
-TOOLS: list[dict[str, Any]] = tools_for_openai(WRITE_ENABLED_PROFILE)
-READ_ONLY_TOOLS: list[dict[str, Any]] = tools_for_openai(READ_ONLY_PROFILE)
+# 기본 Agent는 최소권한 read_only다. 쓰기 실험은 WRITE_ENABLED_TOOLS와
+# write_enabled Runtime을 코드에서 명시적으로 선택해야 한다.
+TOOLS: list[dict[str, Any]] = tools_for_openai(READ_ONLY_PROFILE)
+READ_ONLY_TOOLS: list[dict[str, Any]] = TOOLS
+WRITE_ENABLED_TOOLS: list[dict[str, Any]] = tools_for_openai(WRITE_ENABLED_PROFILE)
 
 
 def build_runtime(
     *,
     trace_path: Path = TRACE_PATH,
     sandbox_root: Path = SANDBOX_ROOT,
-    tool_profile: ToolProfile = WRITE_ENABLED_PROFILE,
+    tool_profile: ToolProfile = READ_ONLY_PROFILE,
 ) -> Runtime:
     """API key 없이 기본 로컬 testbed Runtime을 구성한다."""
     return Runtime(

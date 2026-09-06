@@ -10,6 +10,7 @@
   },
   "expected": {
     "policy_decision": "allow",
+    "authorization_decision": "allow",
     "runtime_status": "success",
     "end_stage": "runtime",
     "source_trust": "untrusted",

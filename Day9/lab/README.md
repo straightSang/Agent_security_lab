@@ -104,9 +104,23 @@ MCP 명세에서 tool은 `name`, `description`, `inputSchema`, 선택적 `output
 | D9-E04 | `../secret/...` path | schema DENY | profile 경로 범위 제한 |
 | D9-E05 | write-enabled에서 `run_command` | schema DENY | 범용 도구 기본 제거 |
 | D9-E06 | write-enabled owner write | schema ALLOW → approval pending | 기존 승인 흐름 유지 |
+| D9-E07 | untrusted write | Policy DENY, 이후 gate 0회 | Policy 단축 종료 회귀 |
+| D9-E08 | cross-user read | AuthZ DENY, 승인 발급 0회 | 인가 단축 종료 회귀 |
+| D9-E09 | 승인 write 후 같은 ID 재사용 | 첫 실행 1회, replay 0회 | consume-before-dispatch 회귀 |
 
-fixture는 `src/fixtures/mcp_least_privilege.json`에 고정되어 있다. 기대값은 테스트
-정답표일 뿐 Runtime의 허용 결론에 사용되지 않는다.
+E01~E06 fixture는 `src/fixtures/mcp_least_privilege.json`에 고정되어 있고
+`test_mcp_tool_schema.py/run_case()`가 한 건씩 실행한다. E07~E09는 기존 경계가 새
+schema gate 때문에 우회되지 않았는지 `test_security_invariants.py`의 이름 있는 함수
+세 개가 검사한다. 기대값은 테스트 정답표일 뿐 Runtime의 허용 결론에 사용되지 않는다.
+
+| 사례 | 실제 실행 함수 | 호출되어야 하는 보안 단계 |
+|---|---|---|
+| E01 | `test_mcp_tool_schema.py/run_case()` | schema→Validation→Policy→AuthZ→Dispatcher |
+| E02~E05 | `test_mcp_tool_schema.py/run_case()` | schema에서 종료; 이후 단계 0회 |
+| E06 | `test_mcp_tool_schema.py/run_case()` | schema→Validation→Policy→AuthZ→승인 조회·발급; Dispatcher 0회 |
+| E07 | `test_security_invariants.py/check_policy_deny_short_circuit()` | Policy 뒤 AuthZ·승인·Dispatcher 0회 |
+| E08 | `test_security_invariants.py/check_authorization_deny_short_circuit()` | AuthZ 뒤 승인·Dispatcher 0회 |
+| E09 | `test_security_invariants.py/check_approval_consume_and_replay()` | consume→Dispatcher 1회; 재사용 Dispatcher 0회 |
 
 ## 제2장 — 기록 수행
 
@@ -169,11 +183,20 @@ schema에서 차단된 요청은 Policy 사건이 없어야 정상이다. evalua
 | `security/evaluator.py` | schema 지표 추가 | 조기 종료·우회 판정 | 결과를 공통 지표로 비교 |
 | `experiment_support.py` | profile 주입·digest 대상 추가 | fixture별 독립 Runtime | 같은 profile 조건 재현 |
 | `test_mcp_tool_schema.py` | 신규 | D9-E01~E06 실행 | 최소권한 효과와 정상 utility 검증 |
+| `test_security_invariants.py` | E07~E09로 정리 | 단축 종료·승인 재사용 회귀 | 새 gate가 기존 경계를 우회하지 않는지 검증 |
 | `mcp_least_privilege.json` | 신규 | synthetic 입력·expected | 수동 입력 차이 없이 replay |
+
+`Agent.py/TOOLS`, `Agent.py/build_runtime()`과 `Agent_v0.5.py`의 기본값은 모두
+`read_only`다. 쓰기를 쓰는 fixture는 `make_experiment_runtime(...,
+tool_profile=WRITE_ENABLED_PROFILE)`처럼 명시적으로 넓힌다.
 
 기존 `run_command` 내부 실행 코드는 삭제하지 않았다. 다만 기본 profile에서 노출하지
 않고 `legacy_compat`에서만 선택할 수 있게 했다. 따라서 이전 실험 재현성은 유지하면서
 Day9 기본 공격 표면은 줄었다.
+
+`tools_for_mcp()`는 깊은 복사본을 반환한다. 모델 쪽에 전달된 schema나 annotation을
+바꿔도 서버의 원본 catalog가 바뀌지 않는지는
+`test_mcp_tool_schema.py/check_advertised_schema_isolation()`이 별도로 검사한다.
 
 ## MCP authorization과 이번 Lab의 범위
 
@@ -207,6 +230,9 @@ python3 -B test_security_invariants.py
 - D9-E01 정상 read 성공
 - D9-E02~E05 Dispatcher 0회
 - D9-E06 approval pending, Dispatcher 0회
+- D9-E07 Policy 뒤 AuthZ·승인·Dispatcher 0회
+- D9-E08 AuthZ 뒤 승인 번호·Dispatcher 0회
+- D9-E09 consume 뒤 1회 실행, 같은 승인 번호 replay 0회
 - 모든 case `schema_bypass=false`, `trace_completeness=true`
 - Day7/8 회귀 테스트 PASS
 - 동일 seed/profile replay에서 decision/result digest 일치
