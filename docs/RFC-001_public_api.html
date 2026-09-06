@@ -1,0 +1,742 @@
+<title>공개 계약 정리 RFC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Serif+KR:wght@500;600&display=swap">
+
+<style>
+  :root {
+    --ground:      #F4F5F7;
+    --surface:     #FFFFFF;
+    --surface-alt: #ECEEF2;
+    --ink:         #16191F;
+    --muted:       #5C6472;
+    --faint:       #8B93A1;
+    --rule:        #D8DCE3;
+    --rule-strong: #B9C0CB;
+    --accent:      #2F4B8F;
+    --accent-soft: #E4EAF6;
+    --remove:      #A44A3F;
+    --remove-soft: #F6E7E4;
+    --keep:        #3E6B52;
+    --keep-soft:   #E4EFE8;
+    --hold:        #8A6D1F;
+    --hold-soft:   #F6EEDA;
+
+    --sans: "IBM Plex Sans KR", "Malgun Gothic", system-ui, sans-serif;
+    --serif: "Noto Serif KR", Georgia, serif;
+    --mono: "IBM Plex Mono", "D2Coding", Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #14161A;
+      --surface:     #1B1E24;
+      --surface-alt: #22262E;
+      --ink:         #E6E9EF;
+      --muted:       #98A1B0;
+      --faint:       #6E7787;
+      --rule:        #2A2F38;
+      --rule-strong: #3A4150;
+      --accent:      #8FA8E0;
+      --accent-soft: #202A40;
+      --remove:      #D98B7E;
+      --remove-soft: #34211E;
+      --keep:        #7FB394;
+      --keep-soft:   #1C2A22;
+      --hold:        #C9A94E;
+      --hold-soft:   #2C2617;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #14161A;
+    --surface:     #1B1E24;
+    --surface-alt: #22262E;
+    --ink:         #E6E9EF;
+    --muted:       #98A1B0;
+    --faint:       #6E7787;
+    --rule:        #2A2F38;
+    --rule-strong: #3A4150;
+    --accent:      #8FA8E0;
+    --accent-soft: #202A40;
+    --remove:      #D98B7E;
+    --remove-soft: #34211E;
+    --keep:        #7FB394;
+    --keep-soft:   #1C2A22;
+    --hold:        #C9A94E;
+    --hold-soft:   #2C2617;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.75;
+    margin: 0;
+    padding: 0 24px 120px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  .col  { max-width: 660px; }
+
+  /* ---------- masthead ---------- */
+  .masthead {
+    border-bottom: 2px solid var(--ink);
+    padding: 56px 0 22px;
+    margin-bottom: 44px;
+  }
+  .docid {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+  .masthead h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(30px, 4.4vw, 44px);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-size: 17px;
+    color: var(--muted);
+    max-width: 620px;
+    margin: 0 0 26px;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 36px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--faint);
+  }
+  .meta b { color: var(--muted); font-weight: 500; }
+
+  /* ---------- verdict ---------- */
+  .verdict {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--accent);
+    padding: 26px 30px;
+    margin-bottom: 56px;
+  }
+  .verdict .lede {
+    font-family: var(--serif);
+    font-size: 21px;
+    line-height: 1.55;
+    margin: 0 0 14px;
+    text-wrap: balance;
+  }
+  .verdict p:last-child { margin-bottom: 0; }
+
+  /* ---------- sections ---------- */
+  section { margin-bottom: 60px; }
+  .shead {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    border-bottom: 1px solid var(--rule-strong);
+    padding-bottom: 10px;
+    margin-bottom: 26px;
+  }
+  .snum {
+    font-family: var(--serif);
+    font-size: 15px;
+    color: var(--accent);
+    font-weight: 600;
+    min-width: 22px;
+  }
+  .shead h2 {
+    font-size: 21px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  h3 {
+    font-size: 15.5px;
+    font-weight: 600;
+    margin: 34px 0 12px;
+    color: var(--ink);
+  }
+  p { margin: 0 0 16px; }
+  .col p, .col li { font-size: 15.5px; }
+  strong { font-weight: 600; }
+  code {
+    font-family: var(--mono);
+    font-size: 0.885em;
+    background: var(--surface-alt);
+    padding: 1px 5px;
+    border-radius: 2px;
+  }
+  ul { margin: 0 0 16px; padding-left: 20px; }
+  li { margin-bottom: 7px; }
+
+  /* ---------- data ---------- */
+  .scroll { overflow-x: auto; margin: 0 0 8px; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    min-width: 560px;
+  }
+  th {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--faint);
+    font-weight: 500;
+    padding: 0 14px 8px 0;
+    border-bottom: 1px solid var(--rule-strong);
+    white-space: nowrap;
+  }
+  td {
+    padding: 9px 14px 9px 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+    line-height: 1.55;
+  }
+  td.mono, th.mono { font-family: var(--mono); font-size: 12.5px; }
+  .caption {
+    font-size: 12.5px;
+    color: var(--faint);
+    margin: 10px 0 0;
+    max-width: 660px;
+  }
+
+  .tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    padding: 2px 7px;
+    border-radius: 2px;
+    white-space: nowrap;
+    display: inline-block;
+  }
+  .t-remove { background: var(--remove-soft); color: var(--remove); }
+  .t-keep   { background: var(--keep-soft);   color: var(--keep); }
+  .t-hold   { background: var(--hold-soft);   color: var(--hold); }
+  .t-accent { background: var(--accent-soft); color: var(--accent); }
+
+  /* ---------- figure ---------- */
+  figure { margin: 28px 0 0; }
+  figure svg { display: block; width: 100%; height: auto; }
+  figcaption {
+    font-size: 12.5px;
+    color: var(--faint);
+    margin-top: 12px;
+    max-width: 660px;
+  }
+  .figframe {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    padding: 22px 18px;
+  }
+
+  /* ---------- option cards ---------- */
+  .options { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(268px, 1fr)); }
+  .opt {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .opt.pick { border-color: var(--accent); border-width: 1px 1px 1px 3px; }
+  .opt .optlabel {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .opt.pick .optlabel { color: var(--accent); }
+  .opt h4 { margin: 0; font-size: 16px; font-weight: 600; }
+  .opt p { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.6; }
+  .opt .cost {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    border-top: 1px solid var(--rule);
+    padding-top: 10px;
+    margin-top: auto;
+  }
+
+  /* ---------- checklist ---------- */
+  .check { border-top: 1px solid var(--rule-strong); }
+  .check .row {
+    display: grid;
+    grid-template-columns: 30px 1fr auto;
+    gap: 14px;
+    align-items: start;
+    padding: 15px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .check .box {
+    font-family: var(--mono);
+    font-size: 18px;
+    color: var(--rule-strong);
+    line-height: 1.3;
+  }
+  .check .what { font-size: 15px; }
+  .check .what small { display: block; color: var(--muted); font-size: 13px; margin-top: 3px; line-height: 1.55; }
+
+  .callout {
+    background: var(--surface-alt);
+    border-left: 3px solid var(--hold);
+    padding: 16px 20px;
+    margin: 24px 0;
+    font-size: 14.5px;
+  }
+  .callout p { margin: 0; }
+
+  a { color: var(--accent); }
+  a:focus-visible, .box:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="docid">RFC-001 · 선택지 B 승인 · 실행 완료 · 2026-09-03</p>
+    <h1>공개 계약 정리</h1>
+    <p class="standfirst">
+      <code>make_runtime_result</code>이 필요한지 묻는 질문에서 출발했다. 감사해 보니 이 함수 하나의 문제가 아니었다.
+      <code>agent.py</code>가 공개한 이름 14개 중 12개를 아무도 쓰지 않는다.
+    </p>
+    <div class="meta">
+      <span><b>대상</b> AI_Agent_Security_Lab_v2</span>
+      <span><b>영향</b> agent.py · runtime.py</span>
+      <span><b>상태</b> C1~C8 실행 완료 · 회귀 7스위트 PASS</span>
+    </div>
+  </header>
+
+  <div class="verdict col">
+    <p class="lede">그렇다. <code>make_runtime_result</code>은 필요 없다. 호출처가 0이다.</p>
+    <p style="margin:0 0 14px;color:var(--muted);font-size:15px;">
+      다만 그것만 지우는 건 증상 처리다. 주석은 “Day 1~8 코드와 문서가 이 형태를 참조하므로 남겨 둔다”고 말하는데,
+      <strong>Day 1~8 코드는 이 저장소에 없다.</strong> 단일 트리로 옮기면서 <code>AI_security_Lab</code>에 그대로 남겨 뒀다.
+    </p>
+    <p style="margin:0;color:var(--muted);font-size:15px;">
+      즉 호환 어댑터가 가리키는 대상이 존재하지 않는다. 어댑터가 아니라 <strong>죽은 채로 공개된 표면</strong>이다.
+    </p>
+    <p style="margin:14px 0 0;padding-top:14px;border-top:1px solid var(--rule);font-size:14px;color:var(--keep);">
+      <strong>실행 완료.</strong> 선택지 B(C1~C8) 승인 후 적용했다. <code>agent.__all__</code>이 14개에서 3개로 줄었고,
+      실행 경계와 보안 판정 코드는 한 줄도 바뀌지 않았다. 기존 회귀 6스위트가 그대로 통과한 것이 그 근거다.
+    </p>
+  </div>
+
+  <!-- ============ 1 ============ -->
+  <section>
+    <div class="shead"><span class="snum">1</span><h2>감사 결과</h2></div>
+
+    <div class="col">
+      <p>
+        <code>ast</code>로 <code>src/</code>와 <code>tests/</code> 전체의 <code>from … import</code> 문을 파싱해,
+        각 이름을 실제로 누가 가져다 쓰는지 집계했다. 문자열 검색이 아니라 구문 트리 기준이므로
+        부분 일치로 인한 과다 집계가 없다.
+      </p>
+    </div>
+
+    <h3><code>agent.py</code>가 <code>__all__</code>로 공개한 14개 이름</h3>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th class="mono">이름</th><th>바깥에서 import</th><th>agent 내부 사용</th><th>판정</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="mono">execute_tool</td><td>테스트 4개 파일</td><td>run_agent_loop</td><td><span class="tag t-keep">공개 유지</span></td></tr>
+          <tr><td class="mono">build_runtime</td><td>experiment_support</td><td>get_default_runtime</td><td><span class="tag t-keep">공개 유지</span></td></tr>
+          <tr><td class="mono">run_agent_loop</td><td>없음</td><td>—</td><td><span class="tag t-hold">유지 · W1 D4 예정</span></td></tr>
+          <tr><td class="mono">to_observation</td><td>없음</td><td>1회</td><td><span class="tag t-remove">공개 해제</span></td></tr>
+          <tr><td class="mono">get_default_runtime</td><td>없음</td><td>1회</td><td><span class="tag t-remove">공개 해제</span></td></tr>
+          <tr><td class="mono">TOOLS</td><td>없음</td><td>있음</td><td><span class="tag t-remove">공개 해제</span></td></tr>
+          <tr><td class="mono">SANDBOX_ROOT</td><td>없음</td><td>4회</td><td><span class="tag t-remove">공개 해제</span></td></tr>
+          <tr><td class="mono">safe_resolve</td><td>없음</td><td>정의만</td><td><span class="tag t-remove">삭제</span></td></tr>
+          <tr><td class="mono">validate_tool_call</td><td>없음<sup>*</sup></td><td>정의만</td><td><span class="tag t-remove">삭제</span></td></tr>
+          <tr><td class="mono">make_runtime_result</td><td>없음</td><td>0회</td><td><span class="tag t-remove">삭제</span></td></tr>
+          <tr><td class="mono">READ_ONLY_TOOLS</td><td>없음</td><td>0회</td><td><span class="tag t-remove">삭제</span></td></tr>
+          <tr><td class="mono">WRITE_ENABLED_TOOLS</td><td>없음</td><td>0회</td><td><span class="tag t-remove">삭제</span></td></tr>
+          <tr><td class="mono">KNOWN_TOOLS</td><td>없음</td><td>0회</td><td><span class="tag t-remove">재수출 제거</span></td></tr>
+          <tr><td class="mono">PATH_TOOLS</td><td>없음</td><td>0회</td><td><span class="tag t-remove">재수출 제거</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="caption">
+      <sup>*</sup> 테스트 2개가 <code>validate_tool_call</code>을 쓰지만 <code>runtime</code>에서 직접 가져온다.
+      <code>agent</code>의 래퍼를 거치지 않는다. 즉 래퍼는 아무도 쓰지 않는다.
+    </p>
+
+    <div class="col">
+      <h3>가장 분명한 사례</h3>
+      <p>
+        <code>make_runtime_result</code>은 <code>runtime.py</code>가 정의하고 → <code>agent.py</code>가 import하고 →
+        <code>__all__</code>로 재수출한다. 그리고 <strong>아무도 호출하지 않는다.</strong>
+        정의부터 재수출까지 전 구간이 죽어 있다.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 2 ============ -->
+  <section>
+    <div class="shead"><span class="snum">2</span><h2>왜 정리가 필요한가</h2></div>
+
+    <div class="col">
+      <p>
+        일반적인 프로젝트라면 “안 쓰는 export가 좀 있네” 정도다. 이 저장소에서는 다르다.
+        README와 위협 모델이 반복해서 주장하는 명제가 하나 있기 때문이다.
+      </p>
+    </div>
+
+    <div class="callout col">
+      <p><strong>“도구가 실행되는 지점은 <code>_dispatch()</code> 하나뿐이며, 거기 도달하려면 여섯 관문을 순서대로 통과해야 한다.”</strong></p>
+    </div>
+
+    <div class="col">
+      <p>
+        이 주장을 검증하려는 사람은 <strong>공개된 진입점을 전부 확인해야 한다.</strong>
+        지금은 그게 14개다. 실제 계약은 2개인데 감사 비용은 14개어치다.
+      </p>
+      <p>세 가지가 구체적으로 나빠진다.</p>
+      <ul>
+        <li><strong>감사 비용.</strong> 외부인이 “이 중 무엇이 Runtime을 우회할 수 있나”를 14번 확인해야 한다.</li>
+        <li><strong>주장의 선명도.</strong> 진입점이 많아 보이면 “경계가 하나”라는 문장의 설득력이 떨어진다. 논문 심사에서 먼저 지적될 지점이다.</li>
+        <li><strong>재발 위험.</strong> 죽은 표면이 남아 있으면 나중에 누군가 그걸 “있으니까” 쓴다. <code>ARGUMENT_SPEC</code>이 정확히 그렇게 두 번째 계약 목록이 되었다.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 3 ============ -->
+  <section>
+    <div class="shead"><span class="snum">3</span><h2>현재 구조</h2></div>
+
+    <figure class="figframe">
+      <svg viewBox="0 0 1000 340" role="img" aria-label="현재 구조 다이어그램. agent.py가 14개 이름을 공개하지만 실제로 사용되는 것은 2개뿐이다.">
+        <defs>
+          <marker id="arrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,1 L9,5 L0,9 z" fill="var(--rule-strong)"/>
+          </marker>
+          <marker id="arrLive" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,1 L9,5 L0,9 z" fill="var(--accent)"/>
+          </marker>
+        </defs>
+
+        <!-- callers -->
+        <text x="18" y="30" font-family="IBM Plex Mono, monospace" font-size="12" fill="var(--faint)">호출자</text>
+        <rect x="18" y="44" width="150" height="42" fill="var(--surface-alt)" stroke="var(--rule)"/>
+        <text x="93" y="70" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="13" fill="var(--ink)">tests/ (6개)</text>
+        <rect x="18" y="98" width="150" height="42" fill="var(--surface-alt)" stroke="var(--rule)"/>
+        <text x="93" y="124" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="13" fill="var(--ink)">experiment_support</text>
+
+        <!-- agent box -->
+        <rect x="300" y="22" width="330" height="296" fill="var(--surface)" stroke="var(--rule-strong)"/>
+        <text x="316" y="44" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="500" fill="var(--ink)">agent.py</text>
+        <text x="616" y="44" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--faint)">__all__ = 14</text>
+        <line x1="300" y1="56" x2="630" y2="56" stroke="var(--rule)"/>
+
+        <!-- live 2 -->
+        <rect x="316" y="68" width="298" height="30" fill="var(--accent-soft)" stroke="var(--accent)"/>
+        <text x="328" y="88" font-family="IBM Plex Mono, monospace" font-size="12.5" fill="var(--accent)">execute_tool</text>
+        <rect x="316" y="102" width="298" height="30" fill="var(--accent-soft)" stroke="var(--accent)"/>
+        <text x="328" y="122" font-family="IBM Plex Mono, monospace" font-size="12.5" fill="var(--accent)">build_runtime</text>
+
+        <!-- dead 12 -->
+        <rect x="316" y="144" width="298" height="158" fill="var(--remove-soft)" stroke="var(--remove)" stroke-dasharray="4 3"/>
+        <text x="328" y="164" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--remove)">아무도 import하지 않는 12개</text>
+        <text x="328" y="186" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--remove)">make_runtime_result   safe_resolve</text>
+        <text x="328" y="204" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--remove)">validate_tool_call    to_observation</text>
+        <text x="328" y="222" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--remove)">TOOLS   READ_ONLY_TOOLS</text>
+        <text x="328" y="240" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--remove)">WRITE_ENABLED_TOOLS   KNOWN_TOOLS</text>
+        <text x="328" y="258" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--remove)">PATH_TOOLS   SANDBOX_ROOT</text>
+        <text x="328" y="276" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--remove)">get_default_runtime   run_agent_loop*</text>
+        <text x="328" y="294" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--faint)">* 신설. W1 D4에서 사용 예정</text>
+
+        <!-- runtime -->
+        <rect x="760" y="44" width="222" height="96" fill="var(--surface)" stroke="var(--rule-strong)"/>
+        <text x="776" y="66" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="500" fill="var(--ink)">runtime.py</text>
+        <line x1="760" y1="78" x2="982" y2="78" stroke="var(--rule)"/>
+        <text x="776" y="98" font-family="IBM Plex Mono, monospace" font-size="12" fill="var(--muted)">Runtime.execute_tool</text>
+        <text x="776" y="118" font-family="IBM Plex Mono, monospace" font-size="12" fill="var(--muted)">6개 관문 · _dispatch</text>
+
+        <!-- arrows -->
+        <line x1="168" y1="65" x2="310" y2="80" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arrLive)"/>
+        <line x1="168" y1="119" x2="310" y2="117" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arrLive)"/>
+        <line x1="630" y1="92" x2="752" y2="92" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arrLive)"/>
+        <line x1="630" y1="220" x2="700" y2="220" stroke="var(--rule-strong)" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrA)"/>
+        <text x="710" y="218" font-family="IBM Plex Sans KR, sans-serif" font-size="12" fill="var(--faint)">도달하는</text>
+        <text x="710" y="234" font-family="IBM Plex Sans KR, sans-serif" font-size="12" fill="var(--faint)">호출자 없음</text>
+      </svg>
+      <figcaption>
+        파란 경로만 살아 있다. 점선 박스 12개는 <code>__all__</code>에 이름이 올라가 있을 뿐,
+        어떤 파일도 <code>from agent import …</code>로 가져가지 않는다.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ 4 ============ -->
+  <section>
+    <div class="shead"><span class="snum">4</span><h2>제안 구조</h2></div>
+
+    <div class="col">
+      <p>
+        원칙 하나로 정리된다. <strong>공개 계약은 실제로 쓰이는 것과 앞으로 쓸 것만 담는다.</strong>
+        내부 구현은 이름 앞에 밑줄을 붙이거나 <code>__all__</code>에서 뺀다.
+      </p>
+    </div>
+
+    <figure class="figframe">
+      <svg viewBox="0 0 1000 300" role="img" aria-label="제안 구조 다이어그램. agent.py의 공개 계약을 3개로 줄이고 나머지는 내부로 돌린다.">
+        <defs>
+          <marker id="arrB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,1 L9,5 L0,9 z" fill="var(--accent)"/>
+          </marker>
+        </defs>
+
+        <text x="18" y="30" font-family="IBM Plex Mono, monospace" font-size="12" fill="var(--faint)">호출자</text>
+        <rect x="18" y="44" width="150" height="42" fill="var(--surface-alt)" stroke="var(--rule)"/>
+        <text x="93" y="70" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="13" fill="var(--ink)">tests/ (7개)</text>
+        <rect x="18" y="98" width="150" height="42" fill="var(--surface-alt)" stroke="var(--rule)"/>
+        <text x="93" y="124" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="13" fill="var(--ink)">experiment_support</text>
+
+        <!-- agent -->
+        <rect x="300" y="22" width="330" height="188" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.5"/>
+        <text x="316" y="44" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="500" fill="var(--ink)">agent.py</text>
+        <text x="616" y="44" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--accent)">__all__ = 3</text>
+        <line x1="300" y1="56" x2="630" y2="56" stroke="var(--rule)"/>
+        <rect x="316" y="68" width="298" height="28" fill="var(--accent-soft)" stroke="var(--accent)"/>
+        <text x="328" y="87" font-family="IBM Plex Mono, monospace" font-size="12.5" fill="var(--accent)">execute_tool</text>
+        <rect x="316" y="100" width="298" height="28" fill="var(--accent-soft)" stroke="var(--accent)"/>
+        <text x="328" y="119" font-family="IBM Plex Mono, monospace" font-size="12.5" fill="var(--accent)">build_runtime</text>
+        <rect x="316" y="132" width="298" height="28" fill="var(--accent-soft)" stroke="var(--accent)"/>
+        <text x="328" y="151" font-family="IBM Plex Mono, monospace" font-size="12.5" fill="var(--accent)">run_agent_loop</text>
+        <text x="316" y="182" font-family="IBM Plex Sans KR, sans-serif" font-size="11.5" fill="var(--faint)">내부 구현은 _ 접두사 · __all__에서 제외</text>
+        <text x="316" y="199" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--faint)">_default_runtime  _TOOLS  _SANDBOX_ROOT</text>
+
+        <!-- runtime -->
+        <rect x="760" y="44" width="222" height="120" fill="var(--surface)" stroke="var(--rule-strong)"/>
+        <text x="776" y="66" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="500" fill="var(--ink)">runtime.py</text>
+        <line x1="760" y1="78" x2="982" y2="78" stroke="var(--rule)"/>
+        <text x="776" y="98" font-family="IBM Plex Mono, monospace" font-size="12" fill="var(--muted)">Runtime</text>
+        <text x="776" y="118" font-family="IBM Plex Mono, monospace" font-size="12" fill="var(--muted)">validate_tool_call</text>
+        <text x="776" y="138" font-family="IBM Plex Mono, monospace" font-size="12" fill="var(--muted)">safe_resolve · to_observation</text>
+        <text x="776" y="156" font-family="IBM Plex Sans KR, sans-serif" font-size="11" fill="var(--faint)">필요한 곳이 직접 가져간다</text>
+
+        <line x1="168" y1="65" x2="310" y2="80" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arrB)"/>
+        <line x1="168" y1="119" x2="310" y2="112" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arrB)"/>
+        <line x1="630" y1="110" x2="752" y2="100" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arrB)"/>
+
+        <!-- contract test -->
+        <rect x="300" y="234" width="682" height="48" fill="var(--keep-soft)" stroke="var(--keep)"/>
+        <text x="316" y="253" font-family="IBM Plex Mono, monospace" font-size="12.5" fill="var(--keep)">tests/test_public_api_contract.py</text>
+        <text x="316" y="271" font-family="IBM Plex Sans KR, sans-serif" font-size="12" fill="var(--keep)">__all__의 모든 이름이 실제로 쓰이거나 사용 예정으로 등록되어 있는지 검사한다</text>
+      </svg>
+      <figcaption>
+        <code>agent.py</code>는 얇은 진입점으로만 남는다. 테스트가 <code>validate_tool_call</code>을 쓸 때는 지금처럼
+        <code>runtime</code>에서 직접 가져간다 — 이미 그렇게 하고 있으므로 테스트는 한 줄도 바뀌지 않는다.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ 5 ============ -->
+  <section>
+    <div class="shead"><span class="snum">5</span><h2>변경 목록</h2></div>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>#</th><th class="mono">대상</th><th>조치</th><th>이유</th><th>위험</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono">C1</td><td class="mono">runtime.make_runtime_result</td>
+            <td><span class="tag t-remove">삭제</span></td>
+            <td>호출처 0. 정의–재수출 전 구간이 죽어 있다</td><td>없음</td>
+          </tr>
+          <tr>
+            <td class="mono">C2</td><td class="mono">agent.safe_resolve<br>agent.validate_tool_call</td>
+            <td><span class="tag t-remove">삭제</span></td>
+            <td><code>runtime</code>의 원본을 <code>SANDBOX_ROOT</code>로 감싼 래퍼. 아무도 쓰지 않는다</td><td>없음</td>
+          </tr>
+          <tr>
+            <td class="mono">C3</td><td class="mono">agent.READ_ONLY_TOOLS<br>agent.WRITE_ENABLED_TOOLS</td>
+            <td><span class="tag t-remove">삭제</span></td>
+            <td>정의만 있고 내부에서도 안 쓴다. 필요하면 <code>tools_for_openai(PROFILE)</code>로 즉석 생성</td><td>없음</td>
+          </tr>
+          <tr>
+            <td class="mono">C4</td><td class="mono">agent의 KNOWN_TOOLS<br>PATH_TOOLS 재수출</td>
+            <td><span class="tag t-remove">제거</span></td>
+            <td><code>runtime</code>에서 직접 가져가면 된다. 이름의 출처가 하나여야 한다</td><td>없음</td>
+          </tr>
+          <tr>
+            <td class="mono">C5</td><td class="mono">TOOLS · SANDBOX_ROOT<br>get_default_runtime · to_observation</td>
+            <td><span class="tag t-hold">내부로</span></td>
+            <td>agent 안에서는 쓰지만 밖에서는 안 쓴다. <code>__all__</code>에서만 뺀다(이름은 유지)</td><td>낮음</td>
+          </tr>
+          <tr>
+            <td class="mono">C6</td><td class="mono">agent.__all__</td>
+            <td><span class="tag t-accent">3개로 축소</span></td>
+            <td><code>execute_tool</code> · <code>build_runtime</code> · <code>run_agent_loop</code></td><td>낮음</td>
+          </tr>
+          <tr>
+            <td class="mono">C7</td><td class="mono">agent.py 헤더 주석</td>
+            <td><span class="tag t-accent">재작성</span></td>
+            <td>“Day 1~8 호환” 문구 삭제. 대상이 이 저장소에 없다는 사실을 명시</td><td>없음</td>
+          </tr>
+          <tr>
+            <td class="mono">C8</td><td class="mono">tests/test_public_api_contract.py</td>
+            <td><span class="tag t-keep">신설</span></td>
+            <td>죽은 공개 표면이 다시 생기면 실패한다. 예정 항목은 명시적으로 등록</td><td>없음</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="caption">
+      실행 경계(<code>runtime.Runtime</code>)와 보안 판정 코드(<code>security/</code>)는 <strong>한 줄도 건드리지 않는다.</strong>
+      변경은 전부 “무엇을 공개하는가”에 한정된다.
+    </p>
+
+    <div class="col">
+      <h3>C8이 실제로 하는 검사</h3>
+      <p>
+        <code>__all__</code>의 각 이름에 대해, 저장소 안에서 실제로 import되는지를 <code>ast</code>로 확인한다.
+        아직 안 쓰이는 것은 <code>PLANNED</code> 목록에 사유와 함께 등록해야 통과한다.
+        지금은 <code>run_agent_loop</code> 하나가 여기 들어간다 — <em>W1 D4 model-in-the-loop 실험에서 사용 예정</em>.
+      </p>
+      <p>
+        이 방식이면 “나중에 쓸 거라서 남겨 둔다”가 주석 속 구전이 아니라 <strong>깨질 수 있는 선언</strong>이 된다.
+        W1 D4가 끝나면 <code>PLANNED</code>에서 자동으로 빠져야 하고, 안 빠지면 테스트가 알려준다.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 6 ============ -->
+  <section>
+    <div class="shead"><span class="snum">6</span><h2>세 가지 선택지</h2></div>
+
+    <div class="options">
+      <div class="opt">
+        <span class="optlabel">선택지 A · 최소</span>
+        <h4>죽은 코드만 삭제</h4>
+        <p>C1~C4만 수행한다. <code>__all__</code>은 그대로 두고 확실히 죽은 것만 지운다.</p>
+        <p>재발 방지 장치가 없어 몇 주 뒤 같은 상태로 돌아갈 가능성이 높다.</p>
+        <span class="cost">약 30분 · 위험 없음</span>
+      </div>
+
+      <div class="opt pick">
+        <span class="optlabel">선택지 B · 권장</span>
+        <h4>공개 계약 확정 + 회귀</h4>
+        <p>C1~C8 전부. 공개 표면을 3개로 줄이고, 그 상태를 테스트로 고정한다.</p>
+        <p>실행 경계와 보안 판정 코드는 손대지 않으므로 기존 회귀 6스위트가 그대로 통과해야 한다 — 그것이 안전성의 근거다.</p>
+        <span class="cost">약 2시간 · 위험 낮음</span>
+      </div>
+
+      <div class="opt">
+        <span class="optlabel">선택지 C · 큰 변경</span>
+        <h4>runtime.py 분할</h4>
+        <p>662줄인 <code>runtime.py</code>를 관문별 모듈로 쪼갠다(<code>gates/schema.py</code>, <code>gates/policy.py</code> …).</p>
+        <p><strong>지금은 권하지 않는다.</strong> 관문 순서가 곧 보안 계약인데, 파일을 쪼개면 그 순서가 한눈에 안 보인다. W2에서 관측 계층을 손볼 때 함께 판단하는 편이 낫다.</p>
+        <span class="cost">1~2일 · 위험 높음</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 7 ============ -->
+  <section>
+    <div class="shead"><span class="snum">7</span><h2>검증 계획</h2></div>
+
+    <div class="col">
+      <p>변경 후 아래를 순서대로 실행하고, 하나라도 실패하면 되돌린다.</p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>단계</th><th>명령</th><th>합격 기준</th></tr></thead>
+        <tbody>
+          <tr><td>기존 회귀</td><td class="mono">pytest</td><td>6스위트 전부 PASS (변경 전과 동일)</td></tr>
+          <tr><td>신규 계약</td><td class="mono">tests/test_public_api_contract.py</td><td>PASS · 죽은 export 0개</td></tr>
+          <tr><td>정적 검사</td><td class="mono">ruff check src tests</td><td>0 errors</td></tr>
+          <tr><td>import 감사</td><td class="mono">ast 기반 재집계</td><td>미사용 공개 이름 0개</td></tr>
+          <tr><td>오염 확인</td><td class="mono">find . -name "*.jsonl"</td><td>0개 (trace가 tmp로 나감)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col">
+      <h3>되돌리기</h3>
+      <p>
+        변경 전 <code>git tag rfc001-before</code>를 찍는다. 문제가 생기면 그 태그로 되돌린다.
+        보안 판정 코드를 건드리지 않으므로 되돌림이 실험 결과에 영향을 주지 않는다.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 8 ============ -->
+  <section>
+    <div class="shead"><span class="snum">8</span><h2>실행 결과</h2></div>
+
+    <div class="col">
+      <p>선택지 B(C1~C8)를 승인받아 전부 적용했다. 아래는 실행 후 검증 결과다.</p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>검증</th><th>결과</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td>회귀 7스위트</td><td><span class="tag t-keep">PASS</span></td><td>기존 6개 + 신규 <code>test_public_api_contract</code></td></tr>
+          <tr><td>ruff check</td><td><span class="tag t-keep">0 errors</span></td><td>src · tests 전체</td></tr>
+          <tr><td>ast import 재감사</td><td><span class="tag t-keep">미사용 0개</span></td><td><code>run_agent_loop</code>만 PLANNED 등록</td></tr>
+          <tr><td>저장소 오염</td><td><span class="tag t-keep">.jsonl 0개</span></td><td>trace가 tmp로 나감</td></tr>
+          <tr><td>C8 유효성</td><td><span class="tag t-keep">확인</span></td><td>일부러 죽은 이름을 넣어 실패를 확인 후 원복</td></tr>
+          <tr><td>코드 크기</td><td class="mono">agent 381→352<br>runtime 662→633</td><td>실행 경계·보안 판정 코드 변경 0줄</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col">
+      <h3>실행 중 확인한 것 — <code>READ_ONLY_TOOLS</code>의 정체</h3>
+      <p>
+        “<code>agent.READ_ONLY_TOOLS</code>는 MCP schema 검사에 쓰이는 것 아닌가”라는 확인 요청이 있었다.
+        실행 전에 검증했고, 다른 물건이었다.
+      </p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th class="mono">이름</th><th>타입</th><th>쓰임</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">security.tool_schema.<br>READ_ONLY_PROFILE</td><td class="mono">ToolProfile</td><td><strong>검사에 쓰인다.</strong> <code>validate_tool_schema()</code>의 첫 인자</td></tr>
+            <tr><td class="mono">agent.READ_ONLY_TOOLS</td><td class="mono">list[dict]</td><td>모델에게 광고할 도구 정의 목록. 검사와 무관</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:14px;">
+        후자를 검사 함수에 넣으면 <code>AttributeError: 'list' object has no attribute 'exposed_tools'</code>가 난다.
+        이름이 비슷해 혼동을 부르고 있었으므로, 삭제로 그 위험까지 함께 사라졌다.
+      </p>
+    </div>
+
+    <div class="callout col" style="margin-top:28px;">
+      <p>
+        <strong>연구 관점에서 한 가지 덧붙인다.</strong> 이 정리는 코드 위생 문제가 아니라
+        <em>“감사 가능한 공격 표면을 최소로 유지한다”</em>는 이 랩의 원칙을 저장소 자신에게 적용하는 일이다.
+        논문 부록에 “공개 진입점 3개, 그것을 회귀로 고정” 한 줄을 쓸 수 있는지 여부가 걸려 있다.
+      </p>
+    </div>
+  </section>
+
+</div>

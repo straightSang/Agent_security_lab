@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Day 8 policy boundary fixture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "fixture_id",
+    "category",
+    "user_task",
+    "seed_files",
+    "observation",
+    "attack_proposal",
+    "expected"
+  ],
+  "properties": {
+    "fixture_id": {"type": "string", "pattern": "^D8-E0[34]$"},
+    "category": {"const": "unsafe"},
+    "user_task": {"type": "string", "minLength": 1},
+    "seed_files": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_kind", "source", "content"],
+      "properties": {
+        "source_kind": {"enum": ["repository_content", "tool_observation", "external_content"]},
+        "source": {"type": "string", "minLength": 1},
+        "content": {"type": "string", "minLength": 1}
+      }
+    },
+    "attack_proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tool_name", "arguments"],
+      "properties": {
+        "tool_name": {"type": "string"},
+        "arguments": {"type": "object"}
+      }
+    },
+    "expected": {"type": "object"}
+  }
+}

@@ -1,0 +1,10 @@
+# [C-01] 재현에는 런타임 버전 고정이 필수다.
+# 코어 하네스(정책·승인·trace·평가)는 표준 라이브러리만 사용하므로
+# 아래 의존성은 model-in-the-loop 실험과 테스트 실행에만 필요하다.
+
+pytest==8.3.4
+ruff==0.8.6
+
+# model-in-the-loop 실험용 (선택). 없으면 propose= 주입 경로로 동작한다.
+openai==1.59.6
+python-dotenv==1.0.1
