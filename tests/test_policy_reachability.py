@@ -266,7 +266,7 @@ def test_unknown_capability_is_denied() -> None:
 # 기능 설명:
 #     네 검사를 순서대로 실행한다. pytest 없이 직접 실행할 때의 진입점이다.
 #
-#     판정 함수만 직접 부르는 단위 검사여서 sandbox·trace·증거가 필요 없다.
+#     판정 함수만 직접 부르는 단위 검사여서 sandbox, trace, 증거가 필요 없다.
 #     필요 없는 격리를 얹으면 느려지고 무엇을 검사하는지 흐려진다.
 #
 #     [삭제 이력] 여기서 lab_paths.trace_root()를 부르던 한 줄을 제거했다.

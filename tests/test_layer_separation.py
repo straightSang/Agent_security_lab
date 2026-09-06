@@ -82,7 +82,7 @@ def test_schema_gate_only_catches_exposure_and_limits() -> None:
     validation = validate_tool_call("read_file", {"path": long_path}, SANDBOX_ROOT)
     assert validation["allowed"], "validation이 길이 제한을 하고 있다(중복)"
 
-    print("schema gate 전담 검사 확인: 노출 통제 · 길이 제한")
+    print("schema gate 전담 검사 확인: 노출 통제, 길이 제한")
 
 
 # 함수이름: test_validation_only_catches_symlink_escape
@@ -186,7 +186,7 @@ def test_validation_fails_closed_without_usable_argument() -> None:
     assert not unknown["allowed"]
     assert str(unknown["reason"]).startswith("UNKNOWN_TOOL"), unknown["reason"]
 
-    print("fail closed 확인: 쓸 수 없는 인자 · 알 수 없는 도구")
+    print("fail closed 확인: 쓸 수 없는 인자, 알 수 없는 도구")
 
 
 # 함수이름: test_tool_catalog_is_the_single_source

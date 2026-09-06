@@ -6,6 +6,19 @@
 
 from __future__ import annotations
 
+# [경로 부트스트랩] src/를 import 경로에 넣는 일은 아래 프로젝트 import보다 반드시
+# 먼저 일어나야 한다. 이 파일은 모듈 최상위에서 바로 실행되는 형태라 진입점 블록이
+# 없고, 그래서 경로 설정을 넣을 다른 자리가 없다. pytest로 돌릴 때는 루트
+# conftest.py가 같은 일을 하므로 여기서는 중복을 피한다.
+#
+# 이 블록 때문에 아래 import가 파일 최상단에 오지 못하므로 E402를 끈다.
+# ruff: noqa: E402
+import sys
+from pathlib import Path
+
+if str(Path(__file__).resolve().parents[1] / "src") not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
 import ast
 import json
 from pathlib import Path

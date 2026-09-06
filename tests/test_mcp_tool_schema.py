@@ -1,4 +1,4 @@
-# Day 9 MCP tool schema·least privilege fixture 실험.
+# Day 9 MCP tool schema, least privilege fixture 실험.
 
 
 from __future__ import annotations
