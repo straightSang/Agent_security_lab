@@ -4,7 +4,7 @@
 #
 # 기능 설명:
 #     MCP inputSchema는 모델에게 보여 주는 설명인 동시에 서버가 다시 검증해야
-#     하는 입력 계약이다. 모델에게 보여 줬다는 사실이 검증을 대신하지 않는다.
+#     하는 입력 인터페이스다. 모델에게 보여 줬다는 사실이 검증을 대신하지 않는다.
 #
 #     [세 개의 프로필]
 #
@@ -286,7 +286,7 @@ def tools_for_mcp(profile: ToolProfile) -> list[dict[str, Any]]:
 # 반환값:
 #     list[dict]: Responses API 함수 도구 형식의 정의들
 # 기능 설명:
-#     같은 MCP 계약을 OpenAI 함수 도구 형식으로 변환한다.
+#     같은 MCP 인터페이스를 OpenAI 함수 도구 형식으로 변환한다.
 #
 #     도구 정의의 단일 기준은 MCP catalog 하나다. API 형식마다 정의를 따로
 #     관리하면 두 정의가 어긋나고, 모델이 본 것과 서버가 검사하는 것이 달라진다.
@@ -311,7 +311,7 @@ def tools_for_openai(profile: ToolProfile) -> list[dict[str, Any]]:
 # 반환값:
 #     ToolSchemaDecision: 통과 여부와 안정적인 reason
 # 기능 설명:
-#     노출 여부와 인자 계약을 서버에서 다시 검사한다. Runtime의 첫 관문이다.
+#     노출 여부와 인자 인터페이스를 서버에서 다시 검사한다. Runtime의 첫 관문이다.
 #
 #         1. 이 프로필에 노출된 도구인가   -> TOOL_NOT_EXPOSED_IN_PROFILE
 #         2. 인자가 객체인가               -> MCP_ARGUMENTS_MUST_BE_OBJECT

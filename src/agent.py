@@ -16,13 +16,13 @@
 #     이 저장소는 "도구가 실행되는 지점은 _dispatch() 하나뿐"이라고 주장한다.
 #     그 주장을 검증하려는 사람은 공개된 진입점을 전부 확인해야 한다. 이전에는
 #     __all__에 14개가 올라가 있었고 그중 12개는 아무도 import하지 않았다.
-#     실제 계약은 2개인데 감사 비용은 14개어치였다.
+#     실제 인터페이스는 2개인데 감사 비용은 14개어치였다.
 #
 #     그 12개에는 "Day 1~8 호환용"이라는 주석이 붙어 있었다. 그러나 Day 1~8
 #     코드는 이 저장소에 없다. 단일 트리로 옮기면서 AI_security_Lab에 남겨
 #     뒀다. 즉 어댑터가 가리키는 대상이 존재하지 않았다.
 #
-#     tests/test_public_api_contract.py가 이 상태를 회귀로 고정한다.
+#     tests/test_public_api_interface.py가 이 상태를 회귀로 고정한다.
 #
 # 기능 설명:
 #     이 모듈은 ID 발급과 기본값 채우기만 한다. 허용 여부는 전부 Runtime이
@@ -51,8 +51,8 @@ from security.provenance import direct_user_provenance, observation_provenance
 from security.tool_schema import READ_ONLY_PROFILE, ToolProfile, tools_for_openai
 from trace_logger import TraceLogger
 
-# [RFC-001] 공개 계약. 이 목록에 없는 이름은 내부 구현이다.
-# tests/test_public_api_contract.py가 각 항목이 실제로 쓰이는지 검사한다.
+# [RFC-001] 공개 인터페이스. 이 목록에 없는 이름은 내부 구현이다.
+# tests/test_public_api_interface.py가 각 항목이 실제로 쓰이는지 검사한다.
 __all__ = [
     "build_runtime",
     "execute_tool",

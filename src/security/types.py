@@ -1,5 +1,5 @@
 # 모듈이름: security.types
-# 역할: 제안·정책·인가·승인·결과 사이의 명시적 계약 타입
+# 역할: 제안·정책·인가·승인·결과 사이의 명시적 인터페이스 타입
 # 호출 주체: security 전체, runtime, agent, experiment_support, tests
 #
 # 기능 설명:
@@ -250,7 +250,7 @@ class ToolIntent:
 # 기능 설명:
 #     PolicyEngine만 이 객체를 만든다. LLM, 관측값, fixture는 만들 수 없다.
 #
-#     지금은 별도 규칙 레지스트리가 없다. 나중에 도입해도 기존 reason 계약은
+#     지금은 별도 규칙 레지스트리가 없다. 나중에 도입해도 기존 reason 인터페이스는
 #     유지한다. 과거 실험 로그의 reason 문자열이 계속 유효해야 하기 때문이다.
 @dataclass(frozen=True)
 class PolicyDecision:
@@ -261,7 +261,7 @@ class PolicyDecision:
     resource: str | None
     trust: TrustLabel
     # 현재는 사람이 읽는 reason을 안정적인 규칙 식별자로 재사용한다.
-    # 이후 별도 rule registry를 도입해도 기존 reason 계약은 유지한다.
+    # 이후 별도 rule registry를 도입해도 기존 reason 인터페이스는 유지한다.
     rule_id: str | None = None
 
     # 함수이름: PolicyDecision.trace_fields
@@ -314,7 +314,7 @@ class ApprovalState:
 # 메서드:
 #     trace_fields(): trace 기록용 필드 묶음
 # 기능 설명:
-#     Policy 결과와 분리된 actor-resource-action 인가 계약이다.
+#     Policy 결과와 분리된 actor-resource-action 인가 인터페이스다.
 #
 #     승인으로 되살릴 수 있으면 거부가 아니다.
 @dataclass(frozen=True)

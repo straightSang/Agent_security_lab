@@ -3,7 +3,7 @@
 # 호출 주체: runtime, agent, experiment_support, tests
 #
 # 기능 설명:
-#     자주 쓰는 계약 타입만 재수출한다. 판정 엔진(PolicyEngine,
+#     자주 쓰는 인터페이스 타입만 재수출한다. 판정 엔진(PolicyEngine,
 #     AuthorizationEngine, ApprovalStore)은 일부러 넣지 않았다.
 #
 #     `from security import PolicyEngine` 처럼 짧게 쓸 수 있으면 어느 모듈이

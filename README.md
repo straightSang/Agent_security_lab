@@ -15,7 +15,7 @@ LLM 에이전트에서 **비신뢰 입력이 권한 있는 행동으로 변환�
 ```text
 LLM tool proposal
    │
-   ├─ 1. MCP schema gate       어떤 도구를 노출했고, 인자 계약을 지켰는가
+   ├─ 1. MCP schema gate       어떤 도구를 노출했고, 인자 인터페이스를 지켰는가
    ├─ 2. Runtime validation    정규화된 경로가 sandbox 안인가
    ├─ 3. Policy                trust, 민감 리소스, capability, 범위 규칙
    ├─ 4. Authorization         이 actor가 이 리소스의 소유자나 멤버인가
@@ -38,47 +38,34 @@ LLM tool proposal
 
 ```bash
 pip install -r requirements.txt
-pytest                     # 단위 검사 14건
+pytest                     # 단위 검사 19건
 ```
 
-**주의 — `pytest` 하나로는 전부 돌지 않는다.** 회귀 스위트 7종 중 3종만 `test_`로 시작하는
-함수를 가지고 있고, 나머지 4종(D7~D9 실험 스위트)은 모듈 최상위에서 바로 실행되는 형태다.
-pytest는 그 4종을 import하면서 사실상 실행하지만 통과 건수로 세지 않는다. 전부 확인하려면
-아래처럼 직접 실행한다.
+**`pytest` 하나로 7파일 19건이 모두 돈다. 각 파일은 직접 실행도 가능하다.**
 
-```bash
-for f in tests/test_*.py; do python3 "$f" || echo "FAIL $f"; done
-```
-
-| 파일 | pytest 수집 | 직접 실행 |
+| 파일 | pytest 수집 | 검사 대상 |
 |---|---:|---|
-| `test_policy_reachability.py` | 5건 | 가능 |
-| `test_layer_separation.py` | 5건 | 가능 |
-| `test_public_api_contract.py` | 4건 | 가능 |
-| `test_mcp_tool_schema.py` | 0건 | 가능 (`main()`) |
-| `test_indirect_injection.py` | 0건 | 가능 (모듈 최상위 실행) |
-| `test_policy_boundary.py` | 0건 | 가능 (모듈 최상위 실행) |
-| `test_security_invariants.py` | 0건 | 가능 (모듈 최상위 실행) |
+| `test_policy_reachability.py` | 5건 | POLICY 분기 도달 가능성 (A-01 회귀) |
+| `test_layer_separation.py` | 5건 | schema gate와 validation의 역할 분리 |
+| `test_public_api_interface.py` | 4건 | 공개 진입점 (RFC-001 회귀) |
+| `test_indirect_injection.py` | 2건 | 간접 프롬프트 주입 (D7-E01~E02) |
+| `test_mcp_tool_schema.py` | 1건 | MCP 최소권한 (D9-E01~E06) |
+| `test_policy_boundary.py` | 1건 | control-plane 불변 (D8-E03~E06) |
+| `test_security_invariants.py` | 1건 | 실행 경계와 승인 불변 (D9-E07~E09) |
 
-**pytest에서 이 4종이 어떻게 되는가.** import 시점에 본문이 실행되므로 검사 자체는 돌고,
-실패하면 pytest가 잡는다. 다만 통과 건수로 세지 않고 collection error로 보고하며,
-**한 건이라도 실패하면 수집 단계에서 전체가 중단되어 나머지 테스트가 아예 돌지 않는다.**
-확인 결과다.
+
+한 건이 실패해도 나머지 테스트는 계속 실행된다. 아래는 확인 결과이다.
 
 ```
-ERROR tests/test_policy_boundary.py - AssertionError: ...
-!!!!!!!! Interrupted: 1 error during collection !!!!!!!!
+FAILED tests/test_policy_boundary.py::test_policy_boundary - AssertionError
+1 failed, 18 passed
 ```
 
-그래서 개별 실행(`-k`), 테스트별 결과 보고, 실패 후 나머지 계속 진행이 모두 불가능하다.
-이 상태를 해소하려면 4종의 최상위 실행문을 `test_`로 시작하는 함수로 감싸야 한다.
-아직 착수하지 않았다. 착수 시점은 `docs/CURRICULUM_12W.md`가 아니라 이 항목을
-해결하는 커밋이 정한다.
 
 ### 증거 승격
 
 trace 기본 출력은 저장소가 아니라 임시 디렉터리다(`src/lab_paths.py`의 `trace_root()`).
-보고서에 인용할 run만 `LAB_TRACE_ROOT`로 출력 위치를 지정해 `evidence/` 아래에 남긴다.
+보고서에 인용할 run만 `LAB_TRACE_ROOT`로 출력 위치를 지정하여 `evidence/` 아래에 남긴다.
 
 ```bash
 LAB_TRACE_ROOT=evidence/EXP-W1D1-01 python3 tests/test_mcp_tool_schema.py
@@ -88,8 +75,10 @@ LAB_TRACE_ROOT=evidence/EXP-W1D1-01 python3 tests/test_mcp_tool_schema.py
 
 ### 환경 기록
 
-Python 3.10 이상(`.python-version`은 3.12.8). 실험 노트에는 아래 두 값을 반드시 남긴다.
-그래야 나중에 "이 표가 어느 코드에서 나왔는가"에 답할 수 있다.
+Python 3.10 이상(`.python-version`은 3.12.8). 
+나중에 이 표가 어느 코드에서 나왔는지 증명하기 위해서
+실험 노트에는 아래 두 값을 반드시 남긴다.
+
 
 ```bash
 python3 --version          # 예: Python 3.12.8
@@ -98,24 +87,39 @@ git rev-parse --short HEAD # 예: 166b00c
 
 ---
 
-## 공개 계약
+## 공개 인터페이스
 
-이 저장소를 코드로 쓰는 방법은 세 개뿐이다. `agent.__all__`이 그 전부다.
+**이 저장소를 밖에서 쓰는 방법은 3가지뿐이다.**
 
-| 이름 | 역할 |
+| 이름 | 하는 일 |
 |---|---|
-| `execute_tool()` | 도구 제안 하나를 여섯 관문으로 보낸다 |
-| `build_runtime()` | 격리된 Runtime 하나를 만든다 |
-| `run_agent_loop()` | 모델을 실제 실행 루프에 넣는다 (W1 D4에서 사용) |
+| `execute_tool()` | 도구 호출 하나를 여섯 관문에 통과시킨다 |
+| `build_runtime()` | 격리된 실험 환경 하나를 만든다 |
+| `run_agent_loop()` | 진짜 모델을 실행 루프에 붙인다 (W1 D4에서 사용 예정) |
 
-그 밖의 이름은 내부 구현이며, 필요한 것은 원래 정의된 모듈에서 직접 가져간다.
-`tests/test_public_api_contract.py`가 이 상태를 회귀로 고정한다 — 아무도 쓰지 않는
-이름을 공개하면 테스트가 실패한다.
+나머지는 전부 내부 구현이다. 필요하면 원래 정의된 모듈에서 직접 가져간다.
+예를 들어 `validate_tool_call`은 `runtime`에서, `ToolProfile`은
+`security.tool_schema`에서 가져온다.
 
-**왜 3개인가.** 이 저장소는 "도구가 실행되는 지점은 `_dispatch()` 하나뿐"이라고
-주장한다. 그 주장을 검증하려는 사람은 공개 진입점을 전부 확인해야 하므로, 그 수가
-곧 감사 비용이다. 근거는 [`docs/RFC-001_public_api.html`](docs/RFC-001_public_api.html) 참조.
+**왜 3개만 공개하나.**
 
+이 저장소는 "도구가 실행되는 지점은 `_dispatch()` 하나뿐"이라고 주장한다.
+누가 이 주장을 검증하려면 **공개된 진입점을 하나도 빠짐없이 확인해야 한다.**
+하나라도 안 본 진입점이 있으면 "모든 경로가 막혀 있다"고 말할 수 없기 때문이다.
+
+그래서 진입점 개수가 곧 검증 비용이다. 개편 전에는 14개를 공개하고 있었고,
+그중 12개는 아무도 쓰지 않았다. 확인할 것은 14개인데 실제 인터페이스는 2개였다.
+
+`tests/test_public_api_interface.py`가 이 상태를 자동으로 감시한다.
+
+- 아무도 import하지 않는 이름을 공개하면 → 실패
+- 공개 개수가 5개를 넘으면 → 실패
+- `_dispatch` 같은 우회 가능한 이름이 목록에 오르면 → 실패
+
+아직 안 쓰이는 `run_agent_loop()`는 "W1 D4에서 쓸 예정"이라는 사유와 함께
+등록되어 있다. 실제로 쓰기 시작하면 테스트가 목록에서 빼라고 알려 준다.
+
+자세한 근거는 [`docs/RFC-001_public_api.html`](docs/RFC-001_public_api.html) 참조.
 ## 저장소 구조
 
 | 경로 | 내용 |
@@ -125,9 +129,9 @@ git rev-parse --short HEAD # 예: 166b00c
 | `src/runtime.py` | 유일한 실행 경계. 여섯 단계 순서를 강제한다 |
 | `src/agent.py` | 진입점. `execute_tool()`과 model-in-the-loop `run_agent_loop()` |
 | `tests/` | 회귀 스위트 7종 |
-| `fixtures/` 와 `schemas/` | 실험 입력과 그 계약 |
+| `fixtures/` 와 `schemas/` | 실험 입력과 그 인터페이스 |
 | `sandbox/` | 합성 데이터와 inert canary. 실제 비밀 없음 |
-| `docs/` | 위협 모델, 권한 정책, 데이터 계약, 커리큘럼, 변경 이력 |
+| `docs/` | 위협 모델, 권한 정책, 데이터 인터페이스, 커리큘럼, 변경 이력 |
 | `docs/notes/` | **일자별 연구 노트.** 하루에 하나씩 추가된다 |
 | `evidence/` | 보고서가 인용하는 승격된 run만 |
 | `archive/v1-daily/` | Day 1~9 원본 폴더. 읽기 전용 보존 |
@@ -154,7 +158,7 @@ git rev-parse --short HEAD # 예: 166b00c
 | Day | 주제 | 커리큘럼 | 핵심 산출물 |
 |---:|---|---|---|
 | 1 | Agent loop, 상태 모델 | W1 D1 | 제안과 실행의 분리 |
-| 2 | 구조화 logger, trace 계약 | W1 D2 | JSONL 이벤트 스키마 |
+| 2 | 구조화 logger, trace 인터페이스 | W1 D2 | JSONL 이벤트 스키마 |
 | 3 | Filesystem capability 정책 | W1 D3 | 경로 정규화, sandbox 결속 |
 | 4 | 입력과 도구 스키마 검증 | W1 D4 | 선언형 `POLICY`, capability 매핑 |
 | 5 | Authorization gate, 승인 | W1 D5 | actor-resource 소유권, 1회용 승인 |

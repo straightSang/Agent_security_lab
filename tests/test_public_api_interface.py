@@ -1,4 +1,4 @@
-# [RFC-001 회귀] 공개 계약 검사.
+# [RFC-001 회귀] 공개 인터페이스 검사.
 #
 # 왜 이 테스트가 필요한가
 # -----------------------
@@ -7,7 +7,7 @@
 # 공개된 진입점을 전부 확인해야 한다.
 #
 # RFC-001 이전에는 agent.__all__에 14개가 올라가 있었고, 그중 12개는 어떤
-# 파일도 import하지 않았다. 실제 계약은 2개인데 감사 비용은 14개어치였다.
+# 파일도 import하지 않았다. 실제 인터페이스는 2개인데 감사 비용은 14개어치였다.
 #
 # 그 12개에는 "Day 1~8 호환용"이라는 주석이 붙어 있었다. 그러나 Day 1~8 코드는
 # 이 저장소에 없다. 단일 트리로 옮기면서 AI_security_Lab에 남겨 뒀다. 어댑터가
@@ -25,10 +25,9 @@
 
 from __future__ import annotations
 
-# [경로 부트스트랩] 이 파일은 importlib로 agent 모듈을 직접 불러오므로 src/가
+# 이 파일은 importlib로 agent 모듈을 직접 불러오므로 src/가
 # import 경로에 있어야 한다. 이전에는 파일 맨 아래 __main__ 블록에서 넣었는데,
-# 그 시점에는 이미 늦어 직접 실행이 ModuleNotFoundError로 끝났다. pytest로 돌릴
-# 때는 루트 conftest.py가 같은 일을 하므로 여기서는 중복을 피한다.
+# 그 시점에는 이미 늦어 직접 실행이 ModuleNotFoundError로 끝났다.
 import ast
 import importlib
 import sys
@@ -41,7 +40,7 @@ TESTS = PROJECT_ROOT / "tests"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-# 공개 계약을 가진 모듈. 여기 없는 모듈은 내부 구현으로 본다.
+# 공개 인터페이스를 가진 모듈. 여기 없는 모듈은 내부 구현으로 본다.
 PUBLIC_MODULES = ("agent",)
 
 # 아직 쓰이지 않지만 의도적으로 공개한 이름과 그 사유.
@@ -89,14 +88,12 @@ def _imported_names() -> dict[str, set[str]]:
 # 기능 설명:
 #     [RFC-001 핵심 검사] __all__의 모든 이름이 정당화되는지 확인한다.
 #
-#     정당화되는 경우는 둘뿐이다.
+#     허용되는 경우는 둘뿐이다.
 #
 #         (a) 저장소 안 어딘가에서 실제로 import된다
 #         (b) PLANNED에 사유와 함께 등록되어 있다
 #
-#     둘 다 아니면 죽은 공개 표면이다. 감사 비용만 늘리고 나중에 누군가
-#     "있으니까" 쓰게 된다. ARGUMENT_SPEC이 정확히 그렇게 두 번째 계약
-#     목록이 되었다.
+#     둘 다 아니면 죽은 공개 표면이다. 감사 비용만 늘리고 나중에 악용될 수 있다.
 def test_no_dead_public_names() -> None:
     used = _imported_names()
     dead: list[str] = []
@@ -104,7 +101,7 @@ def test_no_dead_public_names() -> None:
     for module_name in PUBLIC_MODULES:
         module = importlib.import_module(module_name)
         exported = getattr(module, "__all__", None)
-        assert exported is not None, f"{module_name}에 __all__이 없다. 공개 계약이 선언되지 않았다"
+        assert exported is not None, f"{module_name}에 __all__이 없다. 공개 인터페이스가 선언되지 않았다"
 
         for name in exported:
             if name in used[module_name] or name in PLANNED:
@@ -116,7 +113,7 @@ def test_no_dead_public_names() -> None:
         + "\n  - ".join(dead)
     )
     total = sum(len(getattr(importlib.import_module(m), "__all__", [])) for m in PUBLIC_MODULES)
-    print(f"공개 계약 확인: {total}개 전부 정당화됨 (사용 중 또는 PLANNED)")
+    print(f"공개 인터페이스 확인: {total}개 전부 정당화됨 (사용 중 또는 PLANNED)")
 
 
 # 함수이름: test_planned_entries_are_still_pending
@@ -167,10 +164,10 @@ def test_planned_entries_are_still_pending() -> None:
 #     공개된 이름 중 Runtime을 거치지 않고 도구를 실행할 수 있는 것이 없는지
 #     확인한다.
 #
-#     이 저장소의 핵심 주장이 "실행 지점은 _dispatch() 하나뿐"이므로, 공개
-#     표면에 그것을 우회하는 통로가 있으면 주장 자체가 무너진다. 여기서는
-#     금지 이름 목록으로 방어한다 — dispatch나 실제 파일 조작 함수가 공개
-#     계약에 올라오면 즉시 실패한다.
+#     실행 지점은 _dispatch() 하나뿐이어야 하므로 
+#     공개 표면에 그것을 우회하는 통로가 있으면 안 된다. 
+#     여기서는 금지 이름 목록으로 방어한다 
+#      — dispatch나 실제 파일 조작 함수가 공개로 올라오면 즉시 실패한다.
 def test_public_surface_cannot_bypass_runtime() -> None:
     forbidden = {"_dispatch", "dispatch", "_read_file", "_write_file", "_run_command", "_list_files"}
     leaked: list[str] = []
@@ -195,7 +192,7 @@ def test_public_surface_cannot_bypass_runtime() -> None:
 #     공개 진입점 수에 상한을 둔다.
 #
 #     숫자 자체가 목적은 아니다. 상한이 있으면 새 이름을 공개할 때마다
-#     "이게 정말 계약인가"를 한 번 더 묻게 된다는 점이 목적이다. 늘려야 할
+#     "이게 정말 인터페이스인가"를 한 번 더 묻게 된다는 점이 목적이다. 늘려야 할
 #     이유가 생기면 이 상수를 올리되, 그때 RFC에 근거를 남긴다.
 def test_entry_point_count_is_small() -> None:
     limit = 5
@@ -204,7 +201,7 @@ def test_entry_point_count_is_small() -> None:
         exported = getattr(module, "__all__", [])
         assert len(exported) <= limit, (
             f"{module_name}.__all__이 {len(exported)}개로 상한 {limit}개를 넘었다. "
-            f"정말 공개 계약인지 검토하고, 맞다면 근거를 RFC에 남기고 상한을 올려라"
+            f"정말 공개 인터페이스인지 검토하고, 맞다면 근거를 RFC에 남기고 상한을 올려라"
         )
         print(f"진입점 수 확인: {module_name} {len(exported)}개 (상한 {limit})")
 
@@ -220,9 +217,8 @@ def main() -> None:
     test_planned_entries_are_still_pending()
     test_public_surface_cannot_bypass_runtime()
     test_entry_point_count_is_small()
-    print("공개 계약 테스트: PASS")
+    print("공개 인터페이스 테스트: PASS")
 
 
 if __name__ == "__main__":
-    # 경로 설정은 파일 상단 부트스트랩 블록에서 이미 끝났다. 여기서 하면 늦다.
     main()

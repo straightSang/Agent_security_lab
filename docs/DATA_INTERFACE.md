@@ -8,8 +8,8 @@
 
 > **왜 하나로 합쳤는가.** Day별로 문서를 새로 쓰는 구조에서 Day9 `schema.md`는 Day8의
 > 1~9절(Provenance·ObservationEnvelope·RuntimeResult·JSONL trace 형식)을 잃은 채
-> MCP 절만 남았다. 코드는 그 자료형을 여전히 사용하는데 계약 문서만 사라진 상태였다.
-> 이 문서는 두 문서를 합쳐 **누적 계약** 하나로 유지한다. 새 Day의 추가분은 맨 끝
+> MCP 절만 남았다. 코드는 그 자료형을 여전히 사용하는데 인터페이스 문서만 사라진 상태였다.
+> 이 문서는 두 문서를 합쳐 **누적 인터페이스** 하나로 유지한다. 새 Day의 추가분은 맨 끝
 > "변경 이력"에만 적고, 본문은 항상 현행 전체를 담는다.
 
 ## 문서를 읽는 세 과정
@@ -22,7 +22,7 @@
 |---|---|---|---|---|
 | `Provenance` | 인증·source adapter | `ToolIntent`, Policy | 요청 출처 표현 | 자연어 내용과 출처를 분리 |
 | `ToolProfile` | 신뢰된 설정 | schema gate | 작업별 도구 노출 범위 | 최소권한 노출 |
-| `ToolSchemaDecision` | schema gate | Runtime | 노출·인자 계약 판정 | ToolIntent 이전 조기 차단 |
+| `ToolSchemaDecision` | schema gate | Runtime | 노출·인자 인터페이스 판정 | ToolIntent 이전 조기 차단 |
 | `ToolIntent` | Runtime | Policy·AuthZ·Approval | 정규화된 실행 요청 | 모든 보안 단계가 같은 요청을 사용 |
 | `PolicyDecision` | PolicyEngine | Runtime | 일반 정책 결론 | 요청과 permission을 분리 |
 | `AuthorizationDecision` | AuthorizationEngine | Runtime | actor별 자격 결론 | Policy ALLOW와 사용자 권한 분리 |
@@ -232,7 +232,7 @@ result_digest
 | `observation_created` | TraceLogger | tool 결과의 source/trust/digest 기록 |
 | `provenance_transition` | Agent loop | 다음 ToolIntent provenance 전이 |
 
-## 9. 회귀 테스트 계약
+## 9. 회귀 테스트 인터페이스
 
 기존 `test_observation.py`와 `test_indirect_injection.py`는 observation provenance와 indirect-injection 차단의 회귀 기준이다. Day 8에서는 동일 경계를 유지하면서 Policy mutation, actor/approval spoofing, Policy/AuthZ 역할 분리 case를 추가한다.
 
@@ -249,24 +249,24 @@ Day 8 trace는 fixture와 run별 디렉터리에 분리해 기록한다. 2026-08
 D7 회귀, D8-E03~E09가 모두 PASS했으며, 원본 `trace.jsonl`과 사람이
 읽는 `summary.md`를 같은 run 디렉터리에 남겼다.
 
-## 10. Evaluator 입력 계약
+## 10. Evaluator 입력 인터페이스
 
 `security/evaluation_contract.py/EvaluationContract`는 fixture의 분류와 예상
 Policy·Authorization 결과를 검증하여 Evaluator에 전달한다. 파일 fixture는
-`security/fixtures.py/IndirectPromptInjectionFixture.evaluation_contract()`가 계약을
+`security/fixtures.py/IndirectPromptInjectionFixture.evaluation_contract()`가 인터페이스를
 자동 생성한다. 따라서 테스트가 `unsafe_fixture=True`나 예상 결정을 중복 작성하지
-않는다. JSON fixture가 없는 동적 불변조건 실험은 동일한 계약 객체를 명시적으로
+않는다. JSON fixture가 없는 동적 불변조건 실험은 동일한 인터페이스 객체를 명시적으로
 생성한다.
 
 ```text
 fixture JSON -> loader 검증 -> EvaluationContract -> evaluate_run(trace, contract=...)
 ```
 
-이 계약은 평가용 정답표이므로 Runtime·Policy에는 전달하지 않는다.
+이 인터페이스는 평가용 정답표이므로 Runtime·Policy에는 전달하지 않는다.
 
 ---
 
-## 10. MCP tool schema 계약
+## 10. MCP tool schema 인터페이스
 
 ### ToolProfile
 
@@ -320,8 +320,8 @@ allowed / reason / profile / tool_name / declared_capability / schema_digest / d
 
 | 계층 | 답하는 질문 | 답하지 않는 질문 |
 |---|---|---|
-| MCP schema gate | 이 도구를 노출했는가, **인자 계약을 지켰는가**, 경로가 구조적으로 안전한가 | 어느 범위까지 허용되는가 · 이 문자열이 실제로 무엇을 가리키는가 |
-| Runtime validation | 이 문자열을 **뒷단계가 쓸 수 있는 실체로 바꿀 수 있는가** | 인자 계약 · 도구 노출 여부 · 범위 |
+| MCP schema gate | 이 도구를 노출했는가, **인자 인터페이스를 지켰는가**, 경로가 구조적으로 안전한가 | 어느 범위까지 허용되는가 · 이 문자열이 실제로 무엇을 가리키는가 |
+| Runtime validation | 이 문자열을 **뒷단계가 쓸 수 있는 실체로 바꿀 수 있는가** | 인자 인터페이스 · 도구 노출 여부 · 범위 |
 | `permission.POLICY` | 이 도구가 이 범위에 접근해도 되는가 | 누가 요청했는가 |
 | `AuthorizationEngine` | 이 actor가 이 리소스의 소유자·멤버인가 | 범위 규칙 자체 |
 
@@ -331,7 +331,7 @@ allowed / reason / profile / tool_name / declared_capability / schema_digest / d
 
 | | schema gate | validation |
 |---|---|---|
-| 판정 근거 | 모델에게 광고한 계약(`inputSchema`) | 실제 파일시스템의 사실 |
+| 판정 근거 | 모델에게 광고한 인터페이스(`inputSchema`) | 실제 파일시스템의 사실 |
 | 파일시스템 | 만지지 않는다 | `resolve()`로 만진다 |
 | 산출물 | 통과/거부뿐 | `resolved_path`, `command_base` **생성** |
 | 전담 검사 | 도구 노출 통제, 길이 제한 | 심볼릭 링크 탈출, 셸 명령 분해 |
@@ -340,10 +340,10 @@ allowed / reason / profile / tool_name / declared_capability / schema_digest / d
 `..`도 절대 경로도 없어 schema gate는 통과시키고, `resolve()`를 하는 validation만
 잡는다. 반대로 미노출 도구와 길이 초과는 validation이 볼 수 없다.
 
-validation은 **인자 계약을 검사하지 않는다.** 선언되지 않은 인자가 들어와도
-통과시킨다. 계약 위반을 거부하는 것은 schema gate 하나의 책임이다. 다만 자기
+validation은 **인자 인터페이스를 검사하지 않는다.** 선언되지 않은 인자가 들어와도
+통과시킨다. 인터페이스 위반을 거부하는 것은 schema gate 하나의 책임이다. 다만 자기
 일을 할 수 없으면 거부한다 — 경로를 정규화하려면 문자열 경로가 있어야 하므로,
-없거나 타입이 다르면 `PATH_ARGUMENT_UNUSABLE`로 거부한다. **'계약 위반'과 '이
+없거나 타입이 다르면 `PATH_ARGUMENT_UNUSABLE`로 거부한다. **'인터페이스 위반'과 '이
 단계가 쓸 수 없는 값'은 다른 사유이며 trace에서 구별된다.**
 
 `tests/test_layer_separation.py`가 이 분리를 회귀로 지킨다.
@@ -357,5 +357,5 @@ validation은 **인자 계약을 검사하지 않는다.** 선언되지 않은 �
 |---|---|
 | v1.0 (Day 8) | Runtime 경계, ToolIntent, Provenance, ObservationEnvelope, RuntimeResult, 복수 observation, Policy/AuthZ/Approval, JSONL trace 형식 확립 |
 | v1.1 (Day 9) | MCP tool schema, ToolProfile, ToolSchemaDecision 추가 |
-| v2.1 | `ARGUMENT_SPEC` 제거. 인자 계약 검사를 schema gate로 단일화하고 validation은 문자열→실체 변환만 담당. 도구 목록의 단일 기준을 MCP catalog로 통일(`KNOWN_TOOLS`) |
+| v2.1 | `ARGUMENT_SPEC` 제거. 인자 인터페이스 검사를 schema gate로 단일화하고 validation은 문자열→실체 변환만 담당. 도구 목록의 단일 기준을 MCP catalog로 통일(`KNOWN_TOOLS`) |
 | v2.0 | Day8 1~9절 복원 통합 · schema/POLICY/AuthZ 역할 분리 명시 · `ToolSchemaDecision.detail` 추가 · `EvaluationResult.canary_leak` 추가 · trace 기본 출력을 임시 디렉터리로 이동 |

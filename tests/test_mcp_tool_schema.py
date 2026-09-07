@@ -193,16 +193,27 @@ def check_advertised_schema_isolation() -> None:
     assert MCP_TOOL_CATALOG["read_file"]["_meta"]["lab/capability"] == "filesystem.read"
 
 
-# 함수이름: main
+# 함수이름: test_mcp_tool_schema
 # 인자: 없음
 # 반환값:
 #     None: 반환값 없음. 결과 JSON을 출력한다
 # 기능 설명:
 #     D9-E01~E06 본 실험과 광고본 격리 검사를 순서대로 실행한다.
-def main() -> None:
-    results = {case["fixture_id"]: run_case(case) for case in load_suite()}
-    check_advertised_schema_isolation()
-    profile_metrics = {
+# 함수이름: collect_profile_metrics
+# 인자: 없음
+#
+#     dict: 프로필 이름별 노출 지표. profile_snapshot에 세 항목을 더한다
+# 기능 설명:
+#     프로필 3종이 각각 무엇을 노출하는지 한 표로 만든다.
+#
+#         exposed_tool_count       몇 개를 노출했나
+#         write_exposed            쓰기 도구가 열려 있나
+#         generic_command_exposed  임의 명령 실행이 열려 있나
+#
+#     이 dict는 검사의 입력이자 보고서의 인용 단위다. 그래서 판정과 분리해
+#     따로 만든다.
+def collect_profile_metrics() -> dict:
+    return {
         profile.name: {
             **profile_snapshot(profile),
             "exposed_tool_count": len(profile.exposed_tools),
@@ -211,9 +222,96 @@ def main() -> None:
         }
         for profile in (READ_ONLY_PROFILE, WRITE_ENABLED_PROFILE, LEGACY_COMPAT_PROFILE)
     }
+
+
+# ===========================================================================
+# pytest 진입점
+#
+# 성격이 다른 세 검사를 따로 센다.
+#
+#     1. fixture 케이스 6건   실제로 도구를 호출해 gate 동작을 본다 (동적)
+#     2. 광고 스키마 격리      노출된 스키마가 내부 인터페이스를 바꾸지 않는지 (정적)
+#     3. 프로필 노출 개수      최소권한 원칙이 지켜지는지 (정적)
+#
+# [왜 셋으로만 나누는가]
+#     1번의 6건은 fixture가 정해 주는 데이터이므로 원래는 pytest.mark.parametrize로
+#     6건을 따로 세는 것이 맞다. 다만 그렇게 하면 이 파일이 pytest 없이는 돌지
+#     않게 된다. 지금은 직접 실행도 유지하는 쪽을 택했다.
+#
+#     parametrize로 옮기는 시점은 "직접 실행을 포기해도 된다"고 판단할 때다.
+# ===========================================================================
+
+
+# 함수이름: test_least_privilege_cases
+# 인자: 없음
+# 반환값:
+#     None: 반환값 없음
+#     AssertionError: fixture가 기대한 gate 동작과 실제가 다를 때 발생
+# 기능 설명:
+#     [D9-E01~E06] fixture가 정의한 여섯 케이스를 실제로 실행한다.
+#
+#     프로필별로 도구를 호출해 보고, 노출되지 않은 도구가 막히는지와 인자 인터페이스
+#     위반이 schema gate에서 걸리는지를 확인한다.
+def test_least_privilege_cases() -> None:
+    for case in load_suite():
+        run_case(case)
+
+
+# 함수이름: test_advertised_schema_is_isolated
+# 인자: 없음
+# 반환값:
+#     None: 반환값 없음
+#     AssertionError: 광고용 스키마가 내부 인터페이스에 영향을 줄 때 발생
+# 기능 설명:
+#     MCP 서버가 밖으로 내보이는 도구 목록이 내부 판정 기준을 바꾸지 않는지
+#     확인한다.
+#
+#     노출용 표현과 집행용 인터페이스가 같은 객체를 공유하면, 표시를 고치는 순간
+#     권한이 함께 바뀐다. 둘은 분리되어 있어야 한다.
+def test_advertised_schema_is_isolated() -> None:
+    check_advertised_schema_isolation()
+
+
+# 함수이름: test_profile_exposure_counts
+# 인자: 없음
+# 반환값:
+#     None: 반환값 없음
+#     AssertionError: 프로필이 필요 이상으로 도구를 노출할 때 발생
+# 기능 설명:
+#     최소권한 원칙이 프로필 정의에서 지켜지는지 확인한다.
+#
+#         read_only      도구 4개, 쓰기 없음
+#         write_enabled  임의 명령 실행 없음
+#
+#     노출 자체가 공격 표면이다. 프로필에 도구를 하나 더 넣는 것은 모델이
+#     제안할 수 있는 행동을 하나 더 여는 것과 같다.
+def test_profile_exposure_counts() -> None:
+    metrics = collect_profile_metrics()
+    assert metrics["read_only"]["exposed_tool_count"] == 4
+    assert metrics["read_only"]["write_exposed"] is False
+    assert metrics["write_enabled"]["generic_command_exposed"] is False
+
+
+# 함수이름: main
+# 인자: 없음
+# 반환값:
+#     None: 반환값 없음
+# 기능 설명:
+#     직접 실행 진입점. 세 검사를 돌리고 케이스별 증거와 프로필 지표를 하나로
+#     모아 출력한다.
+#
+#     pytest 경로에서는 이 합본이 만들어지지 않는다. run_case()가 돌려주는
+#     dict를 테스트 함수가 버리기 때문이다. 보고서에 인용할 JSON이 필요하면
+#     이쪽으로 돌린다.
+def main() -> None:
+    results = {case["fixture_id"]: run_case(case) for case in load_suite()}
+    check_advertised_schema_isolation()
+    profile_metrics = collect_profile_metrics()
+
     assert profile_metrics["read_only"]["exposed_tool_count"] == 4
     assert profile_metrics["read_only"]["write_exposed"] is False
     assert profile_metrics["write_enabled"]["generic_command_exposed"] is False
+
     print(json.dumps({"cases": results, "profiles": profile_metrics}, ensure_ascii=False, indent=2))
     print("Day 9 MCP least-privilege schema tests: PASS")
 

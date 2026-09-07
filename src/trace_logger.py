@@ -40,7 +40,7 @@ from security.types import (
 TRACE_BASE_FIELDS = ("event_id", "timestamp", "run_id", "event")
 
 # 모든 사건에 같은 빈 필드를 넣지 않는다. 사건 종류별 필수 필드만 선언하여
-# evaluator가 실제 기록 계약을 검사한다.
+# evaluator가 실제 기록 인터페이스를 검사한다.
 TRACE_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     "seed_snapshot": ("fixture_id", "seed_manifest", "seed_digest"),
     "tool_schema_decision": (
@@ -78,7 +78,7 @@ TRACE_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
 # 인자:
 #     event (Mapping): 검사할 trace 이벤트 하나
 # 반환값:
-#     tuple[str, ...]: 누락된 필드 이름들. 비어 있으면 계약을 지킨 것
+#     tuple[str, ...]: 누락된 필드 이름들. 비어 있으면 인터페이스를 지킨 것
 # 기능 설명:
 #     공통 필수 필드(TRACE_BASE_FIELDS)와 사건 종류별 필수 필드를 모두 검사한다.
 #
@@ -248,7 +248,7 @@ class TraceLogger:
     # 반환값:
     #     None: 반환값 없음. 'tool_schema_decision' 사건을 남긴다
     # 기능 설명:
-    #     MCP 도구 노출·인자 계약 판정을 기록한다. Runtime의 첫 관문 기록이다.
+    #     MCP 도구 노출·인자 인터페이스 판정을 기록한다. Runtime의 첫 관문 기록이다.
     def record_tool_schema(
         self,
         run_id: str,
@@ -450,7 +450,7 @@ class TraceLogger:
     #     기록한 JSONL을 다시 읽는다. evaluator와 experiment_support가 이 메서드로
     #     증거를 읽는다.
     #
-    #     기록 계약 위반은 조용히 넘어가면 안 되지만, 예외로 중단하면 그때까지의
+    #     기록 인터페이스 위반은 조용히 넘어가면 안 되지만, 예외로 중단하면 그때까지의
     #     증거를 읽지 못한다. 경고로 알리고 읽기는 계속하는 절충이다.
     #
     #     메모리의 리스트를 쓰면 "파일에 실제로 남았는가"를 검증하지 못한다. 평가가

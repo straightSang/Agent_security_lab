@@ -19,12 +19,12 @@
 
 | 계층 | 파일 | 답하는 질문 |
 |---|---|---|
-| MCP schema gate | `security/tool_schema.py` | 도구를 노출했는가 · **인자 계약을 지켰는가** · 경로가 구조적으로 안전한가 |
+| MCP schema gate | `security/tool_schema.py` | 도구를 노출했는가 · **인자 인터페이스를 지켰는가** · 경로가 구조적으로 안전한가 |
 | Runtime validation | `runtime.py` | 이 문자열을 **정규화된 실체로 바꿀 수 있는가**(심볼릭 링크 추적, 셸 분해) |
 | **Policy (이 문서)** | `security/permission.py` | **이 도구가 이 범위에 접근해도 되는가** |
 | Authorization | `security/authorization.py` | 이 actor가 이 리소스의 소유자·멤버인가 |
 
-인자 계약 검사는 schema gate **한 곳에서만** 한다. 이전에는 `runtime.py`의
+인자 인터페이스 검사는 schema gate **한 곳에서만** 한다. 이전에는 `runtime.py`의
 `ARGUMENT_SPEC`이 같은 검사를 중복으로 수행했고, 두 목록이 어긋나면 A-01과 같은
 유형의 도달 불가 분기가 생겼다. `tests/test_layer_separation.py`가 재발을 막는다.
 
@@ -62,7 +62,7 @@ Policy는 "범위상 가능한가"에, Authorization은 "이 리소스에 주인
 ## 평가 순서
 
 `PolicyEngine.evaluate()`는 아래 순서로 판정하며, 먼저 걸리는 규칙의 reason code를 반환한다.
-순서 자체가 계약이다.
+순서 자체가 인터페이스다.
 
 ```text
 1. provenance → trust label 계산
@@ -124,5 +124,5 @@ Policy는 "범위상 가능한가"에, Authorization은 "이 리소스에 주인
 | 버전 | 변경 |
 |---|---|
 | v1.x (Day 3~9) | 7개 사본으로 분기 |
-| v2.1 | `ARGUMENT_SPEC` 제거로 인자 계약 검사 단일화. schema gate / validation 역할 명시 |
+| v2.1 | `ARGUMENT_SPEC` 제거로 인자 인터페이스 검사 단일화. schema gate / validation 역할 명시 |
 | v2.0 | 단일 문서로 통합 · 계층 역할 분리 명시 · 민감 판정 확장 · `data`/`data/shared` 과차단 해소 · 디렉터리 자동 생성 금지 |

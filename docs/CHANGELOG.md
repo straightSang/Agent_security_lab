@@ -48,16 +48,16 @@ schema 단계에서 차단된다(별도 테스트 3건).
 |---|---|
 | 문제 | `runtime.ARGUMENT_SPEC`과 `tool_schema.inputSchema`가 인자의 이름·타입·필수·초과를 **중복 검사**했다. 같은 질문에 두 곳이 답하면 둘이 어긋나는 순간 도달 불가 분기가 생긴다 |
 | 근거 | 5개 케이스를 두 계층에 동시 투입한 결과, 초과 인자와 타입 오류는 양쪽이 동일하게 거부했다. 반면 미노출 도구·길이 초과는 schema gate만, 심볼릭 링크 탈출은 validation만 잡았다 |
-| 조치 | `ARGUMENT_SPEC`과 `validate_arguments()` 삭제. 인자 계약 검사는 schema gate 단독. `validate_tool_call()`은 문자열→실체 변환(경로 정규화·셸 분해)만 수행 |
+| 조치 | `ARGUMENT_SPEC`과 `validate_arguments()` 삭제. 인자 인터페이스 검사는 schema gate 단독. `validate_tool_call()`은 문자열→실체 변환(경로 정규화·셸 분해)만 수행 |
 | 부수 개선 | 도구 목록의 단일 기준을 MCP catalog로 통일(`KNOWN_TOOLS = frozenset(MCP_TOOL_CATALOG)`). 두 번째 도구 목록이 사라졌다 |
-| 사유 코드 | validation의 거부 사유를 안정적 코드로 정리: `PATH_ARGUMENT_UNUSABLE`, `COMMAND_ARGUMENT_UNUSABLE`, `EMPTY_COMMAND`, `COMMAND_USAGE:*`, `UNKNOWN_TOOL:*`, `PATH_ESCAPES_SANDBOX:*`. **'계약 위반'과 '이 단계가 쓸 수 없는 값'이 trace에서 구별된다** |
+| 사유 코드 | validation의 거부 사유를 안정적 코드로 정리: `PATH_ARGUMENT_UNUSABLE`, `COMMAND_ARGUMENT_UNUSABLE`, `EMPTY_COMMAND`, `COMMAND_USAGE:*`, `UNKNOWN_TOOL:*`, `PATH_ESCAPES_SANDBOX:*`. **'인터페이스 위반'과 '이 단계가 쓸 수 없는 값'이 trace에서 구별된다** |
 | 회귀 | `tests/test_layer_separation.py` 신설 (검사 5종) |
 
-핵심은 세 번째 검사다. `test_validation_does_not_check_contract()`는 validation이
-초과 인자를 **통과시키는지**를 확인한다. validation이 다시 계약을 검사하기
+핵심은 세 번째 검사다. `test_validation_does_not_check_interface()`는 validation이
+초과 인자를 **통과시키는지**를 확인한다. validation이 다시 인터페이스를 검사하기
 시작하면 이 테스트가 먼저 깨진다.
 
-### 추가 개정 — RFC-001 공개 계약 정리 (승인 후 실행)
+### 추가 개정 — RFC-001 공개 인터페이스 정리 (승인 후 실행)
 
 `make_runtime_result`이 필요한지 묻는 질문에서 시작해, `agent.py`의 공개 표면
 전체를 `ast`로 감사한 결과다. 설계도(`docs/RFC-001_public_api.html`)를 먼저
@@ -65,7 +65,7 @@ schema 단계에서 차단된다(별도 테스트 3건).
 
 | 항목 | 내용 |
 |---|---|
-| 문제 | `agent.__all__`에 14개가 올라가 있는데 그중 12개를 어떤 파일도 import하지 않았다. 실제 계약은 2개인데 감사 비용은 14개어치였다 |
+| 문제 | `agent.__all__`에 14개가 올라가 있는데 그중 12개를 어떤 파일도 import하지 않았다. 실제 인터페이스는 2개인데 감사 비용은 14개어치였다 |
 | 근본 원인 | 12개에 "Day 1~8 호환용"이라는 주석이 붙어 있었으나, **Day 1~8 코드는 이 저장소에 없다.** 단일 트리로 옮기면서 `AI_security_Lab`에 남겨 뒀다. 어댑터가 가리키는 대상이 존재하지 않았다 |
 | 왜 중요한가 | 이 저장소는 "실행 지점은 `_dispatch()` 하나뿐"이라고 주장한다. 그 주장을 검증하려는 사람은 공개 진입점을 전부 확인해야 한다 |
 
@@ -79,8 +79,8 @@ schema 단계에서 차단된다(별도 테스트 3건).
 | C4 | `agent`의 `KNOWN_TOOLS` · `PATH_TOOLS` 재수출 | 제거 — 이름의 출처는 하나여야 한다 |
 | C5 | `SANDBOX_ROOT` · `get_default_runtime` · `to_observation` | 내부로 — 이름은 유지하고 `__all__`에서만 제외 |
 | C6 | `agent.__all__` | 14개 → **3개** (`execute_tool`, `build_runtime`, `run_agent_loop`) |
-| C7 | `agent.py` 헤더 주석 | 재작성 — "Day 1~8 호환" 문구 삭제, 공개 계약 3개와 그 근거 명시 |
-| C8 | `tests/test_public_api_contract.py` | 신설 — 검사 4종 |
+| C7 | `agent.py` 헤더 주석 | 재작성 — "Day 1~8 호환" 문구 삭제, 공개 인터페이스 3개와 그 근거 명시 |
+| C8 | `tests/test_public_api_interface.py` | 신설 — 검사 4종 |
 
 **C3의 부수 효과 — 이름 충돌 위험 제거**
 
@@ -130,8 +130,8 @@ W1 D4가 끝나면 자동으로 실패하면서 목록에서 빼라고 알려 �
 
 | ID | 심각도 | 처리 |
 |---|---|---|
-| B-01 | 높음 | 같은 번호 다른 내용이던 `ThreatModel0.5.md` 문제를 `docs/THREAT_MODEL.md` v0.7 단일 문서로 해소. 버전 계약과 변경 이력 표 명시 |
-| B-02 | 높음 | Day9에서 사라졌던 Day8 `schema.md` 1~9절(Provenance·ObservationEnvelope·RuntimeResult·복수 observation·JSONL trace)을 `docs/DATA_CONTRACT.md`로 복원 통합 |
+| B-01 | 높음 | 같은 번호 다른 내용이던 `ThreatModel0.5.md` 문제를 `docs/THREAT_MODEL.md` v0.7 단일 문서로 해소. 버전 인터페이스와 변경 이력 표 명시 |
+| B-02 | 높음 | Day9에서 사라졌던 Day8 `schema.md` 1~9절(Provenance·ObservationEnvelope·RuntimeResult·복수 observation·JSONL trace)을 `docs/DATA_INTERFACE.md`로 복원 통합 |
 | B-03 | 중간 | 7개로 분기했던 `permission_policy.md`를 `docs/PERMISSION_POLICY.md` 하나로 통합 |
 | B-04 | 중간 | 루트 `README.md` 신설 — 30초 요약, 재현 명령, Day1~9 커리큘럼 대응표, 현재 한계 |
 | B-05 | 낮음 | 공백 포함 파일명 제거. 모든 문서를 `docs/` 아래 밑줄 표기로 통일 |
@@ -162,7 +162,7 @@ W1 D4가 끝나면 자동으로 실패하면서 목록에서 빼라고 알려 �
 | `test_policy_boundary.py` | D8-E01~E06 | PASS |
 | `test_security_invariants.py` | D9-E07~E09 | PASS |
 | `test_layer_separation.py` | A-13 회귀 | PASS |
-| `test_public_api_contract.py` | RFC-001 회귀 (신규) | PASS |
+| `test_public_api_interface.py` | RFC-001 회귀 (신규) | PASS |
 
 추가 확인.
 

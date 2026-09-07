@@ -1,6 +1,6 @@
 # Day 9 변경 뒤에도 기존 보안 경계가 우회되지 않는지 확인하는 회귀 검사.
 #
-# 각 동적 검사는 독립적인 Runtime, sandbox, trace를 사용하며 seed, 평가, 최종 증거 요약을 남긴다. 
+# 각 동적 검사는 독립적인 Runtime, sandbox, trace를 사용하며 seed, 평가, 최종 증거 요약을 남긴다.
 # 이 파일은 외부 API나 실제 서비스에 연결하지 않는다.
 
 
@@ -21,7 +21,6 @@ if str(Path(__file__).resolve().parents[1] / "src") not in sys.path:
 
 import ast
 import json
-from pathlib import Path
 from unittest.mock import patch
 
 from agent import execute_tool
@@ -323,15 +322,101 @@ def check_approval_consume_and_replay() -> dict:
         "replay_dispatch_count": replay_dispatch.call_count,
     }
 
+# ===========================================================================
+# pytest 진입점
+#
+# 위의 check_* 함수 다섯 개는 각자 자기 Runtime과 sandbox를 만든다. 
+# 즉 이미 독립된 실험이며, 아래는 pytest 수행용이다.
+#
+# [왜 다섯으로 나누는가]
+#     하나로 묶여 있으면 첫 검사가 실패한 순간 나머지 넷은 실행되지 않는다.
+#     무엇이 깨졌는지뿐만이 아니라 무엇이 아직 멀쩡한지도 확인하기 위함이다.
+#
+# [증거 합본은 main()에 남긴다]
+#     세 동적 검사는 dict를 반환하고, 그 합본이 보고서가 인용하는 단위다.
+#     pytest는 반환값을 쓰지 않으므로 합본은 main()에서만 만든다.
+# ===========================================================================
 
-assert_no_direct_dispatch_call()
-assert_no_legacy_authorizer()
 
-results = {
-    "D9-E07": check_policy_deny_short_circuit(),
-    "D9-E08": check_authorization_deny_short_circuit(),
-    "D9-E09": check_approval_consume_and_replay(),
-}
+# 함수이름: test_no_direct_dispatch_call
+# 인자: 없음
+# 반환값:
+#     None: 반환값 없음
+#     AssertionError: Runtime 밖에서 _dispatch()를 부르는 코드가 있을 때 발생
+# 기능 설명:
+#     소스를 실행하지 않고 AST로만 확인하는 정적 검사다. 아래 동적 검사들과
+#     실패 원인이 전혀 다르므로 따로 센다.
+def test_no_direct_dispatch_call() -> None:
+    assert_no_direct_dispatch_call()
 
-print(json.dumps(results, ensure_ascii=False, indent=2))
-print("Day 9 security invariant tests: PASS")
+
+# 함수이름: test_no_legacy_authorizer
+# 인자: 없음
+# 반환값:
+#     None: 반환값 없음
+#     AssertionError: 옛 인가 경로가 남아 있을 때 발생
+# 기능 설명:
+#     죽은 우회 경로가 소스에 남아 있지 않은지 확인하는 정적 검사다.
+def test_no_legacy_authorizer() -> None:
+    assert_no_legacy_authorizer()
+
+
+# 함수이름: test_policy_deny_short_circuits
+# 인자: 없음
+# 반환값:
+#     None: 반환값 없음
+#     AssertionError: Policy DENY 뒤에 후속 관문이 호출될 때 발생
+# 기능 설명:
+#     [D9-E07] Policy 거부 뒤 AuthZ, 승인, Dispatcher가 0회 호출되는지 본다.
+def test_policy_deny_short_circuits() -> None:
+    check_policy_deny_short_circuit()
+
+
+# 함수이름: test_authorization_deny_short_circuits
+# 인자: 없음
+# 반환값:
+#     None: 반환값 없음
+#     AssertionError: AuthZ DENY 뒤에 승인 ID가 발급될 때 발생
+# 기능 설명:
+#     [D9-E08] 자격 없는 요청이 승인 대상 자체가 되지 않는지 본다.
+def test_authorization_deny_short_circuits() -> None:
+    check_authorization_deny_short_circuit()
+
+
+# 함수이름: test_approval_consumed_once_and_replay_blocked
+# 인자: 없음
+# 반환값:
+#     None: 반환값 없음
+#     AssertionError: 소비 순서가 어긋나거나 재사용이 실행될 때 발생
+# 기능 설명:
+#     [D9-E09] 승인이 dispatch 직전에 1회만 소비되고 재제출은 막히는지 본다.
+def test_approval_consumed_once_and_replay_blocked() -> None:
+    check_approval_consume_and_replay()
+
+
+# 함수이름: main
+# 인자: 없음
+# 반환값:
+#     None: 반환값 없음
+# 기능 설명:
+#     직접 실행 진입점. pytest가 세는 다섯 검사를 같은 순서로 돌리되, 세 동적
+#     검사의 반환값을 모아 증거 합본을 출력한다.
+#
+#     pytest는 테스트 함수의 반환값을 버리므로 합본을 만들 수 없다. 보고서에
+#     인용할 JSON이 필요할 때는 이 경로를 쓴다.
+def main() -> None:
+    assert_no_direct_dispatch_call()
+    assert_no_legacy_authorizer()
+
+    results = {
+        "D9-E07": check_policy_deny_short_circuit(),
+        "D9-E08": check_authorization_deny_short_circuit(),
+        "D9-E09": check_approval_consume_and_replay(),
+    }
+
+    print(json.dumps(results, ensure_ascii=False, indent=2))
+    print("Day 9 security invariant tests: PASS")
+
+
+if __name__ == "__main__":
+    main()

@@ -18,3 +18,7 @@ traces/
 ~$*
 .DS_Store
 Thumbs.db
+
+conftest.py
+*.pdf
+*.docs

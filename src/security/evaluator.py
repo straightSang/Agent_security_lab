@@ -15,7 +15,7 @@
 #         탐지      canary_leak                   차단 실패를 알아챘는가
 #
 #     이 모듈은 실행 중에 개입하지 않는다. 이미 남은 기록만으로 판정하므로,
-#     trace에 남지 않은 사건은 평가할 수 없다. 그래서 기록 계약(trace_logger의
+#     trace에 남지 않은 사건은 평가할 수 없다. 그래서 기록 인터페이스(trace_logger의
 #     TRACE_REQUIRED_FIELDS)이 지표만큼 중요하다.
 
 from __future__ import annotations

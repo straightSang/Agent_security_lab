@@ -4,20 +4,20 @@
 # -----------------------
 # Day 9까지 두 계층이 같은 질문에 답했다.
 #
-#     schema gate   inputSchema 기준 인자 계약 검사
-#     validation    ARGUMENT_SPEC 기준 인자 계약 검사   ← 중복
+#     schema gate   inputSchema 기준 인자 인터페이스 검사
+#     validation    ARGUMENT_SPEC 기준 인자 인터페이스 검사   ← 중복
 #
 # 같은 질문에 두 곳이 답하면 둘이 어긋나는 순간 도달 불가 분기가 생긴다.
-# A-01이 정확히 그 유형의 결함이었다. ARGUMENT_SPEC을 제거해 계약 검사를
+# A-01이 정확히 그 유형의 결함이었다. ARGUMENT_SPEC을 제거해 인터페이스 검사를
 # schema gate 하나로 모았고, validation은 '문자열을 실체로 바꾸는' 일만 한다.
 #
 # 이 테스트는 그 분리가 유지되는지를 세 방향에서 확인한다.
 #
 #     1. schema gate만 잡는 것이 있다      (노출 통제, 길이 제한)
 #     2. validation만 잡는 것이 있다        (심볼릭 링크 탈출)
-#     3. validation은 계약을 검사하지 않는다 (초과 인자를 그냥 통과시킨다)
+#     3. validation은 인터페이스를 검사하지 않는다 (초과 인자를 그냥 통과시킨다)
 #
-# 3번이 핵심이다. validation이 다시 계약을 검사하기 시작하면 중복이 되살아난다.
+# 3번이 핵심이다. validation이 다시 인터페이스를 검사하기 시작하면 중복이 되살아난다.
 
 from __future__ import annotations
 
@@ -129,21 +129,21 @@ def test_validation_only_catches_symlink_escape() -> None:
     print("validation 전담 검사 확인: 심볼릭 링크 탈출")
 
 
-# 함수이름: test_validation_does_not_check_contract
+# 함수이름: test_validation_does_not_check_interface
 # 인자: 없음
 # 반환값:
 #     None: 반환값 없음
-#     AssertionError: validation이 인자 계약을 다시 검사할 때 발생
+#     AssertionError: validation이 인자 인터페이스를 다시 검사할 때 발생
 # 기능 설명:
-#     [중복 재발 방지] validation이 인자 계약을 검사하지 않는지 확인한다.
+#     [중복 재발 방지] validation이 인자 인터페이스를 검사하지 않는지 확인한다.
 #
-#     선언되지 않은 인자를 넣어도 validation은 통과시켜야 한다. 계약 위반을
+#     선언되지 않은 인자를 넣어도 validation은 통과시켜야 한다. 인터페이스 위반을
 #     거부하는 것은 schema gate의 책임이며, 정상 경로에서는 그 단계가 먼저
 #     걸러 낸다.
 #
-#     이 테스트가 실패하면 ARGUMENT_SPEC 같은 두 번째 계약 목록이 되살아났다는
+#     이 테스트가 실패하면 ARGUMENT_SPEC 같은 두 번째 인터페이스 목록이 되살아났다는
 #     뜻이다. 그대로 두면 두 목록이 어긋나는 순간 도달 불가 분기가 생긴다.
-def test_validation_does_not_check_contract() -> None:
+def test_validation_does_not_check_interface() -> None:
     args = {"path": "data/user-001/notes.txt", "recursive": True}
 
     decision = validate_tool_schema(LEGACY_COMPAT_PROFILE, "read_file", args)
@@ -152,11 +152,11 @@ def test_validation_does_not_check_contract() -> None:
 
     validation = validate_tool_call("read_file", args, SANDBOX_ROOT)
     assert validation["allowed"], (
-        "validation이 초과 인자를 거부했다. 인자 계약 검사가 두 곳으로 갈라졌다"
+        "validation이 초과 인자를 거부했다. 인자 인터페이스 검사가 두 곳으로 갈라졌다"
     )
     assert validation["resolved_path"] is not None, "정규화된 경로를 만들지 못했다"
 
-    print("계약 검사 단일화 확인: validation은 초과 인자를 판정하지 않는다")
+    print("인터페이스 검사 단일화 확인: validation은 초과 인자를 판정하지 않는다")
 
 
 # 함수이름: test_validation_fails_closed_without_usable_argument
@@ -165,10 +165,10 @@ def test_validation_does_not_check_contract() -> None:
 #     None: 반환값 없음
 #     AssertionError: 쓸 수 없는 인자가 조용히 통과할 때 발생
 # 기능 설명:
-#     계약 검사는 하지 않지만, 자기 일을 할 수 없으면 거부하는지 확인한다.
+#     인터페이스 검사는 하지 않지만, 자기 일을 할 수 없으면 거부하는지 확인한다.
 #
 #     경로를 정규화하려면 문자열 경로가 있어야 한다. 없거나 타입이 다르면
-#     정규화 자체가 불가능하므로 거부한다. 이때 오류 코드는 '계약 위반'이
+#     정규화 자체가 불가능하므로 거부한다. 이때 오류 코드는 '인터페이스 위반'이
 #     아니라 '이 단계가 쓸 수 없는 값'이라는 뜻의 ..._UNUSABLE이다. trace에서
 #     두 종류의 거부를 구별할 수 있어야 한다.
 #
@@ -216,7 +216,7 @@ def test_tool_catalog_is_the_single_source() -> None:
 def main() -> None:
     test_schema_gate_only_catches_exposure_and_limits()
     test_validation_only_catches_symlink_escape()
-    test_validation_does_not_check_contract()
+    test_validation_does_not_check_interface()
     test_validation_fails_closed_without_usable_argument()
     test_tool_catalog_is_the_single_source()
     print("계층 분리 테스트: PASS")

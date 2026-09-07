@@ -3,7 +3,7 @@
 # 호출 주체: tests/test_indirect_injection.py, tests/test_policy_boundary.py
 #
 # 기능 설명:
-#     fixture는 실험의 '입력 계약'이다. 무엇을 관측하게 할지, 어떤 공격 제안을
+#     fixture는 실험의 '입력 인터페이스'이다. 무엇을 관측하게 할지, 어떤 공격 제안을
 #     넣을지, 무엇을 기대하는지를 파일로 고정한다.
 #
 #     실험 조건을 코드 안에 흩어 놓으면 실행할 때마다 조금씩 달라지고, 나중에
@@ -33,7 +33,7 @@ from .types import ProvenanceKind
 #     expected (dict): 기대 결과. 테스트 assertion의 정답표
 #     seed_files (tuple[str, ...]): 이 실험이 필요로 하는 시작 파일
 # 기능 설명:
-#     간접 프롬프트 주입 실험 하나의 입력 계약이다.
+#     간접 프롬프트 주입 실험 하나의 입력 인터페이스다.
 #
 #     fixture.expected는 테스트가 실제 결과와 비교하는 정답표일 뿐, Runtime의
 #     판정에 들어가지 않는다. 이 방향이 뒤집히면 실험이 스스로 답을 정하게 된다.

@@ -123,7 +123,7 @@ class PolicyEngine:
     #     모든 판정이 같은 모양으로 나가도록 강제하는 생성 헬퍼다.
     #
     #     지금은 규칙 레지스트리가 없어 reason이 곧 규칙 ID다. 나중에 별도
-    #     레지스트리를 도입해도 기존 reason 계약은 유지한다. 과거 실험 로그의
+    #     레지스트리를 도입해도 기존 reason 인터페이스는 유지한다. 과거 실험 로그의
     #     reason 문자열이 계속 유효해야 하기 때문이다.
     @staticmethod
     def _decision(outcome: Decision, reason: str, intent: ToolIntent, trust: TrustLabel) -> PolicyDecision:

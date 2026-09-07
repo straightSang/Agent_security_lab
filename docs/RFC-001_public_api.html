@@ -1,4 +1,4 @@
-<title>공개 계약 정리 RFC</title>
+<title>공개 인터페이스 정리 RFC</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Serif+KR:wght@500;600&display=swap">
@@ -315,7 +315,7 @@
 
   <header class="masthead">
     <p class="docid">RFC-001 · 선택지 B 승인 · 실행 완료 · 2026-09-03</p>
-    <h1>공개 계약 정리</h1>
+    <h1>공개 인터페이스 정리</h1>
     <p class="standfirst">
       <code>make_runtime_result</code>이 필요한지 묻는 질문에서 출발했다. 감사해 보니 이 함수 하나의 문제가 아니었다.
       <code>agent.py</code>가 공개한 이름 14개 중 12개를 아무도 쓰지 않는다.
@@ -411,13 +411,13 @@
     <div class="col">
       <p>
         이 주장을 검증하려는 사람은 <strong>공개된 진입점을 전부 확인해야 한다.</strong>
-        지금은 그게 14개다. 실제 계약은 2개인데 감사 비용은 14개어치다.
+        지금은 그게 14개다. 실제 인터페이스는 2개인데 감사 비용은 14개어치다.
       </p>
       <p>세 가지가 구체적으로 나빠진다.</p>
       <ul>
         <li><strong>감사 비용.</strong> 외부인이 “이 중 무엇이 Runtime을 우회할 수 있나”를 14번 확인해야 한다.</li>
         <li><strong>주장의 선명도.</strong> 진입점이 많아 보이면 “경계가 하나”라는 문장의 설득력이 떨어진다. 논문 심사에서 먼저 지적될 지점이다.</li>
-        <li><strong>재발 위험.</strong> 죽은 표면이 남아 있으면 나중에 누군가 그걸 “있으니까” 쓴다. <code>ARGUMENT_SPEC</code>이 정확히 그렇게 두 번째 계약 목록이 되었다.</li>
+        <li><strong>재발 위험.</strong> 죽은 표면이 남아 있으면 나중에 누군가 그걸 “있으니까” 쓴다. <code>ARGUMENT_SPEC</code>이 정확히 그렇게 두 번째 인터페이스 목록이 되었다.</li>
       </ul>
     </div>
   </section>
@@ -495,13 +495,13 @@
 
     <div class="col">
       <p>
-        원칙 하나로 정리된다. <strong>공개 계약은 실제로 쓰이는 것과 앞으로 쓸 것만 담는다.</strong>
+        원칙 하나로 정리된다. <strong>공개 인터페이스는 실제로 쓰이는 것과 앞으로 쓸 것만 담는다.</strong>
         내부 구현은 이름 앞에 밑줄을 붙이거나 <code>__all__</code>에서 뺀다.
       </p>
     </div>
 
     <figure class="figframe">
-      <svg viewBox="0 0 1000 300" role="img" aria-label="제안 구조 다이어그램. agent.py의 공개 계약을 3개로 줄이고 나머지는 내부로 돌린다.">
+      <svg viewBox="0 0 1000 300" role="img" aria-label="제안 구조 다이어그램. agent.py의 공개 인터페이스를 3개로 줄이고 나머지는 내부로 돌린다.">
         <defs>
           <marker id="arrB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
             <path d="M0,1 L9,5 L0,9 z" fill="var(--accent)"/>
@@ -543,7 +543,7 @@
 
         <!-- contract test -->
         <rect x="300" y="234" width="682" height="48" fill="var(--keep-soft)" stroke="var(--keep)"/>
-        <text x="316" y="253" font-family="IBM Plex Mono, monospace" font-size="12.5" fill="var(--keep)">tests/test_public_api_contract.py</text>
+        <text x="316" y="253" font-family="IBM Plex Mono, monospace" font-size="12.5" fill="var(--keep)">tests/test_public_api_interface.py</text>
         <text x="316" y="271" font-family="IBM Plex Sans KR, sans-serif" font-size="12" fill="var(--keep)">__all__의 모든 이름이 실제로 쓰이거나 사용 예정으로 등록되어 있는지 검사한다</text>
       </svg>
       <figcaption>
@@ -599,7 +599,7 @@
             <td>“Day 1~8 호환” 문구 삭제. 대상이 이 저장소에 없다는 사실을 명시</td><td>없음</td>
           </tr>
           <tr>
-            <td class="mono">C8</td><td class="mono">tests/test_public_api_contract.py</td>
+            <td class="mono">C8</td><td class="mono">tests/test_public_api_interface.py</td>
             <td><span class="tag t-keep">신설</span></td>
             <td>죽은 공개 표면이 다시 생기면 실패한다. 예정 항목은 명시적으로 등록</td><td>없음</td>
           </tr>
@@ -641,7 +641,7 @@
 
       <div class="opt pick">
         <span class="optlabel">선택지 B · 권장</span>
-        <h4>공개 계약 확정 + 회귀</h4>
+        <h4>공개 인터페이스 확정 + 회귀</h4>
         <p>C1~C8 전부. 공개 표면을 3개로 줄이고, 그 상태를 테스트로 고정한다.</p>
         <p>실행 경계와 보안 판정 코드는 손대지 않으므로 기존 회귀 6스위트가 그대로 통과해야 한다 — 그것이 안전성의 근거다.</p>
         <span class="cost">약 2시간 · 위험 낮음</span>
@@ -651,7 +651,7 @@
         <span class="optlabel">선택지 C · 큰 변경</span>
         <h4>runtime.py 분할</h4>
         <p>662줄인 <code>runtime.py</code>를 관문별 모듈로 쪼갠다(<code>gates/schema.py</code>, <code>gates/policy.py</code> …).</p>
-        <p><strong>지금은 권하지 않는다.</strong> 관문 순서가 곧 보안 계약인데, 파일을 쪼개면 그 순서가 한눈에 안 보인다. W2에서 관측 계층을 손볼 때 함께 판단하는 편이 낫다.</p>
+        <p><strong>지금은 권하지 않는다.</strong> 관문 순서가 곧 보안 인터페이스인데, 파일을 쪼개면 그 순서가 한눈에 안 보인다. W2에서 관측 계층을 손볼 때 함께 판단하는 편이 낫다.</p>
         <span class="cost">1~2일 · 위험 높음</span>
       </div>
     </div>
@@ -670,7 +670,7 @@
         <thead><tr><th>단계</th><th>명령</th><th>합격 기준</th></tr></thead>
         <tbody>
           <tr><td>기존 회귀</td><td class="mono">pytest</td><td>6스위트 전부 PASS (변경 전과 동일)</td></tr>
-          <tr><td>신규 계약</td><td class="mono">tests/test_public_api_contract.py</td><td>PASS · 죽은 export 0개</td></tr>
+          <tr><td>신규 인터페이스</td><td class="mono">tests/test_public_api_interface.py</td><td>PASS · 죽은 export 0개</td></tr>
           <tr><td>정적 검사</td><td class="mono">ruff check src tests</td><td>0 errors</td></tr>
           <tr><td>import 감사</td><td class="mono">ast 기반 재집계</td><td>미사용 공개 이름 0개</td></tr>
           <tr><td>오염 확인</td><td class="mono">find . -name "*.jsonl"</td><td>0개 (trace가 tmp로 나감)</td></tr>
@@ -699,7 +699,7 @@
       <table>
         <thead><tr><th>검증</th><th>결과</th><th>비고</th></tr></thead>
         <tbody>
-          <tr><td>회귀 7스위트</td><td><span class="tag t-keep">PASS</span></td><td>기존 6개 + 신규 <code>test_public_api_contract</code></td></tr>
+          <tr><td>회귀 7스위트</td><td><span class="tag t-keep">PASS</span></td><td>기존 6개 + 신규 <code>test_public_api_interface</code></td></tr>
           <tr><td>ruff check</td><td><span class="tag t-keep">0 errors</span></td><td>src · tests 전체</td></tr>
           <tr><td>ast import 재감사</td><td><span class="tag t-keep">미사용 0개</span></td><td><code>run_agent_loop</code>만 PLANNED 등록</td></tr>
           <tr><td>저장소 오염</td><td><span class="tag t-keep">.jsonl 0개</span></td><td>trace가 tmp로 나감</td></tr>
