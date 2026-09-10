@@ -1,0 +1,5 @@
+공개 인터페이스 확인: 3개 전부 정당화됨 (사용 중 또는 PLANNED)
+PLANNED 확인: run_agent_loop — W1 D4 model-in-the-loop 기준선 측정에서 사용 예정
+우회 경로 확인: 금지 이름 6종 모두 비공개
+진입점 수 확인: agent 3개 (상한 5)
+공개 인터페이스 테스트: PASS
