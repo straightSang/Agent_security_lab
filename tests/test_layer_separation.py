@@ -15,17 +15,12 @@
 #
 #     1. schema gate만 잡는 것이 있다      (노출 통제, 길이 제한)
 #     2. validation만 잡는 것이 있다        (심볼릭 링크 탈출)
-#     3. validation은 인터페이스를 검사하지 않는다 (초과 인자를 그냥 통과시킨다)
+#     3. validation은 인터페이스 형식을 검사하지 않는다 (초과 인자를 그냥 통과시킨다)
 #
 # 3번이 핵심이다. validation이 다시 인터페이스를 검사하기 시작하면 중복이 되살아난다.
 
 from __future__ import annotations
 
-# [경로 부트스트랩] src/를 import 경로에 넣는 일은 아래 프로젝트 import보다 반드시
-# 먼저 일어나야 한다. 이전에는 파일 맨 아래 __main__ 블록에서 했는데, 그 시점에는
-# 위의 import가 이미 실행된 뒤여서 직접 실행이 항상 ModuleNotFoundError로 끝났다.
-# pytest로 돌릴 때는 루트 conftest.py가 같은 일을 하므로 여기서는 중복을 피한다.
-#
 # 이 블록 때문에 아래 import가 파일 최상단에 오지 못하므로 E402를 끈다.
 # ruff: noqa: E402
 import sys

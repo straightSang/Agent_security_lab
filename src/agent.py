@@ -48,7 +48,7 @@ from security.approval import ApprovalStore
 from security.authorization import AuthorizationEngine
 from security.policy import PolicyEngine
 from security.provenance import direct_user_provenance, observation_provenance
-from security.tool_schema import READ_ONLY_PROFILE, ToolProfile, tools_for_openai
+from security.tool_schema import READ_ONLY_PROFILE, LEGACY_COMPAT_PROFILE,  ToolProfile, tools_for_openai
 from trace_logger import TraceLogger
 
 # [RFC-001] 공개 인터페이스. 이 목록에 없는 이름은 내부 구현이다.
@@ -89,6 +89,7 @@ def build_runtime(
     *,
     trace_path: Path | None = None,
     sandbox_root: Path = SANDBOX_ROOT,
+    # policy 동작확인용: tool_profile: ToolProfile = LEGACY_COMPAT_PROFILE    # 원래는 READ_ONLY_PROFILE
     tool_profile: ToolProfile = READ_ONLY_PROFILE,
 ) -> Runtime:
     return Runtime(

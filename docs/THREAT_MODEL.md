@@ -86,24 +86,28 @@ token scope가 profile을 정해야 한다. 모델이나 observation이 profile�
 
 ## 보안 불변조건
 
-1. profile에 없는 tool은 `tool_schema` 단계에서 종료한다.
-2. schema DENY call에는 ToolIntent·Policy·AuthZ·Approval 사건이 없다.
-3. schema ALLOW도 Policy/AuthZ/Approval을 생략하지 않는다.
-4. annotations는 허용 근거가 아니다.
-5. `read_only`는 write와 generic command capability를 노출하지 않는다.
-6. `write_enabled`도 `run_command`를 노출하지 않는다.
-7. `legacy_compat`는 회귀 목적에서만 명시적으로 선택한다.
-8. Policy DENY 뒤 AuthZ·Approval·Dispatcher는 0회다.
-9. AuthZ DENY 뒤 approval ID는 발급되지 않는다.
-10. 승인 write는 consume 후 한 번만 실행된다.
-11. 모든 판단은 동일 run_id와 call_id로 연결된다.
-12. 모델에 광고한 schema/annotation 복사본 변경은 원본 catalog를 바꾸지 않는다.
-13. [v0.7] inert canary가 허용되지 않은 sink에 도달하면 run은 실패로 표시된다.
-    (`evaluate_run().canary_leak`)
-14. [v0.7] 쓰기는 선언된 디렉터리 안에서만 가능하다. 도구가 디렉터리를 만들지 않는다.
-15. [v0.7] `POLICY`에 선언된 모든 scope는 schema gate를 통과해 실제로 평가된다.
-    도달 불가 분기는 회귀 테스트가 차단한다.
-16. [v0.7] 내부 불변조건 위반도 예외로 중단하지 않고 결과와 trace를 남긴 뒤 거부한다.
+## 불변조건-테스트 대응표
+
+| # | 불변조건 | 검증하는 테스트 | 상태 |
+|---:|---|---|:---:|
+| 1 | profile에 없는 tool은 `tool_schema` 단계에서 종료한다 | `test_layer_separation.py::test_schema_gate_only_catches_exposure_and_limits` (L69)<br>`test_mcp_tool_schema.py::test_least_privilege_cases` D9-E02 | 검증 |
+| 2 | schema DENY call에는 ToolIntent·Policy·AuthZ·Approval 사건이 없다 | `test_mcp_tool_schema.py::run_case` L155~160 (trace 이벤트 부재 확인) | 검증 |
+| 3 | schema ALLOW도 Policy/AuthZ/Approval을 생략하지 않는다 | `test_mcp_tool_schema.py::run_case` L124 (`gate_calls` 대조) | 검증 |
+| 4 | annotations는 허용 근거가 아니다 | — | **미검증** |
+| 5 | `read_only`는 write와 generic command capability를 노출하지 않는다 | `test_mcp_tool_schema.py::test_profile_exposure_counts` (선언)<br>`::test_least_privilege_cases` D9-E02 (동작) | 검증 |
+| 6 | `write_enabled`도 `run_command`를 노출하지 않는다 | `test_mcp_tool_schema.py::test_profile_exposure_counts` | 검증 |
+| 7 | `legacy_compat`는 회귀 목적에서만 명시적으로 선택한다 | — | **미검증** |
+| 8 | Policy DENY 뒤 AuthZ·Approval·Dispatcher는 0회다 | `test_security_invariants.py::test_policy_deny_short_circuits` (D9-E07) | 검증 |
+| 9 | AuthZ DENY 뒤 approval ID는 발급되지 않는다 | `test_security_invariants.py::test_authorization_deny_short_circuits` (D9-E08) | 검증 |
+| 10 | 승인 write는 consume 후 한 번만 실행된다 | `test_security_invariants.py::test_approval_consumed_once_and_replay_blocked` (D9-E09) | 검증 |
+| 11 | 모든 판단은 동일 run_id와 call_id로 연결된다 | `evaluate_run().trace_completeness` — 8개 지점에서 확인<br>`test_security_invariants.py` L137·187·316, `test_policy_boundary.py` L154·259·321, `test_mcp_tool_schema.py` L153, `test_indirect_injection.py` L112·184 | 검증 |
+| 12 | 모델에 광고한 schema/annotation 복사본 변경은 원본 catalog를 바꾸지 않는다 | `test_mcp_tool_schema.py::test_advertised_schema_is_isolated` (L186~191) | 검증 |
+| 13 | inert canary가 허용되지 않은 sink에 도달하면 run은 실패로 표시된다 | — | **미검증** |
+| 14 | 쓰기는 선언된 디렉터리 안에서만 가능하다. 도구가 디렉터리를 만들지 않는다 | — | **미검증** |
+| 15 | `POLICY`에 선언된 모든 scope는 schema gate를 통과해 실제로 평가된다 | `test_policy_reachability.py::test_every_declared_scope_is_reachable`<br>`::test_every_declared_command_is_reachable` | 검증 |
+| 16 | 내부 불변조건 위반도 예외로 중단하지 않고 결과와 trace를 남긴 뒤 거부한다 | — | **미검증** |
+
+**검증 12건 / 미검증 4건**
 
 ## 위협·실험 대응표
 
